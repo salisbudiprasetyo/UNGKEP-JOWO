@@ -18,7 +18,7 @@ if not services.is_admin():
 
 if st.button("← Beranda", key="kembali"):
     st.switch_page("pages_app/beranda.py")
-st.markdown('<h1 class="judul">ADMIN</h1><p class="subjudul">UNGKEP JOWO</p>', unsafe_allow_html=True)
+st.markdown('<div class="hero"><h1>ADMIN</h1><p>UNGKEP JOWO</p></div>', unsafe_allow_html=True)
 
 KATEGORI = ["Nasi", "Ayam Sayur", "Lauk", "Minuman", "Lain-lain"]
 
@@ -79,57 +79,49 @@ with tab_harian:
         if not sudah.empty:
             st.success(f"Menu {tgl.strftime('%d/%m/%Y')} sudah diunggah ({len(sudah)} item). Kamu bisa mengubahnya lagi.")
         else:
-            # isi awal: salin menu terakhir yang pernah diunggah, bila ada
             terakhir = harian.sort_values("tanggal").tail(1)
-            sudah_ref = harian[harian["tanggal"] == terakhir.iloc[0]["tanggal"]] if not terakhir.empty else harian.iloc[0:0]
-            if not sudah_ref.empty:
-                st.caption(f"Terisi otomatis dari menu {sudah_ref.iloc[0]['tanggal']}. Ubah seperlunya lalu unggah.")
-            sudah = sudah_ref
-
+            sudah = harian[harian["tanggal"] == terakhir.iloc[0]["tanggal"]] if not terakhir.empty else harian.iloc[0:0]
+            if not sudah.empty:
+                st.caption(f"Terisi otomatis dari menu {sudah.iloc[0]['tanggal']}. Ubah seperlunya lalu unggah.")
         terpilih = {r.nama: r for r in sudah.itertuples()}
-        baris = []
-        for m in master.itertuples():
-            t = terpilih.get(m.nama)
-            baris.append({
-                "pakai": t is not None,
-                "jenis": m.kategori,
-                "nama": m.nama,
-                "harga": _angka(t.harga) if t else _angka(m.harga),
-                "hpp": _angka(t.hpp) if t else _angka(m.hpp),
-                "batasi": bool(t and _angka(t.batas_stok) == 1),
-                "stok": int(_angka(t.stok)) if t else 0,
-                "alternatif": (t.alternatif if t else ""),
-            })
-        nama_opsi = [""] + master["nama"].tolist()
-        st.caption("Centang menu yang tersedia. Harga boleh diubah khusus hari ini. Aktifkan “Batasi stok” bila jumlahnya terbatas, "
-                   "lalu pilih menu pengganti kalau habis.")
-        ed = st.data_editor(
-            pd.DataFrame(baris), hide_index=True, width="stretch", key=f"ed_harian_{tgl}",
-            disabled=["jenis", "nama", "hpp"],
-            column_config={
-                "pakai": st.column_config.CheckboxColumn("Ada"),
-                "jenis": st.column_config.TextColumn("Jenis"),
-                "nama": st.column_config.TextColumn("Menu"),
-                "harga": st.column_config.NumberColumn("Harga", min_value=0, step=500, format="%d"),
-                "hpp": st.column_config.NumberColumn("Modal", format="%d"),
-                "batasi": st.column_config.CheckboxColumn("Batasi stok"),
-                "stok": st.column_config.NumberColumn("Stok", min_value=0, step=1),
-                "alternatif": st.column_config.SelectboxColumn("Pengganti bila habis", options=nama_opsi),
-            })
+        semua_nama = master["nama"].tolist()
+
+        pilihan_harian = []
+        for kat in KATEGORI:
+            sub = master[master["kategori"] == kat]
+            if sub.empty:
+                continue
+            st.markdown(f"**{kat.upper()}**")
+            for m in sub.itertuples():
+                t = terpilih.get(m.nama)
+                k = f"{tgl.isoformat()}_{m.id}"
+                with st.container(border=True):
+                    pakai = st.toggle(m.nama, value=t is not None, key=f"hp_{k}")
+                    if not pakai:
+                        continue
+                    harga = st.number_input("Harga hari ini (Rp)", min_value=0, step=500, key=f"hh_{k}",
+                                            value=int(_angka(t.harga) if t else _angka(m.harga)))
+                    batasi = st.toggle("Batasi stok", value=bool(t and _angka(t.batas_stok) == 1), key=f"hb_{k}")
+                    stok, alt = 0, ""
+                    if batasi:
+                        stok = st.number_input("Jumlah stok", min_value=1, step=1, key=f"hs_{k}",
+                                               value=max(1, int(_angka(t.stok, 10))) if t else 10)
+                        pilih_alt = [""] + [n for n in semua_nama if n != m.nama]
+                        awal = t.alternatif if t and t.alternatif in pilih_alt else ""
+                        alt = st.selectbox("Pengganti bila habis (opsional)", pilih_alt, index=pilih_alt.index(awal),
+                                           format_func=lambda x: x or "— tidak ada —", key=f"ha_{k}")
+                    pilihan_harian.append({
+                        "tanggal": tgl.isoformat(), "menu_id": m.id, "kategori": m.kategori, "nama": m.nama,
+                        "harga": int(harga), "hpp": int(_angka(t.hpp) if t else _angka(m.hpp)),
+                        "batas_stok": 1 if batasi else 0, "stok": int(stok) if batasi else "", "alternatif": alt})
+        st.caption(f"{len(pilihan_harian)} menu dipilih.")
         if st.button("Unggah menu", type="primary", width="stretch"):
-            pilih = ed[ed["pakai"]]
-            if pilih.empty:
+            if not pilihan_harian:
                 st.error("Pilih minimal satu menu.")
             else:
-                id_by_name = dict(zip(master["nama"], master["id"]))
-                rows = [{
-                    "tanggal": tgl.isoformat(), "menu_id": id_by_name.get(r.nama, ""), "kategori": r.jenis,
-                    "nama": r.nama, "harga": int(r.harga), "hpp": int(r.hpp),
-                    "batas_stok": 1 if r.batasi else 0, "stok": int(r.stok) if r.batasi else "",
-                    "alternatif": r.alternatif if r.batasi else "",
-                } for r in pilih.itertuples()]
-                store.replace_where("MenuHarian", "tanggal", tgl.isoformat(), rows)
-                st.success(f"Menu {tgl.strftime('%d/%m/%Y')} terunggah ({len(rows)} item). Halaman pelanggan ikut berganti.")
+                store.replace_where("MenuHarian", "tanggal", tgl.isoformat(), pilihan_harian)
+                st.success(f"Menu {tgl.strftime('%d/%m/%Y')} terunggah ({len(pilihan_harian)} item). "
+                           "Tabel Pesanan Hari Ini di beranda ikut berganti.")
 
 # ---------------------------------------------------------------- sandi
 with tab_sandi:

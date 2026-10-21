@@ -2,10 +2,20 @@
 from __future__ import annotations
 
 import os
+import threading
 import time
 from pathlib import Path
 
 import pandas as pd
+
+def _locked(fn):
+    """Serialkan operasi baca-ubah-tulis dalam satu proses server."""
+    def wrapper(self, *a, **k):
+        with self.lock:
+            return fn(self, *a, **k)
+    wrapper.__name__ = fn.__name__
+    return wrapper
+
 
 SCHEMA: dict[str, list[str]] = {
     # akun pelanggan + admin (sandi disimpan sebagai hash)
@@ -19,6 +29,8 @@ SCHEMA: dict[str, list[str]] = {
     # REKAP KASBON: satu baris per item yang dipesan (siapa, apa, harga, tanggal, status bayar)
     "Kasbon": ["order_id", "tanggal", "periode", "pelanggan", "kategori", "item", "qty", "harga", "hpp",
                "subtotal", "catatan", "status_pesanan", "status_bayar", "dibuat"],
+    # revisi pesanan dari pelanggan yang menunggu konfirmasi admin (items = JSON daftar item baru)
+    "Revisi": ["tanggal", "pelanggan", "jenis", "items", "catatan", "waktu", "status"],
     # backup tabel "Pesanan Hari Ini" (satu baris per pelanggan per hari)
     "RecordHarian": ["tanggal", "periode", "kelompok", "pelanggan", "pesanan", "jumlah", "status", "dicatat"],
 }
@@ -30,6 +42,7 @@ class LocalStore:
     def __init__(self, folder: str = "data"):
         self.dir = Path(folder)
         self.dir.mkdir(exist_ok=True)
+        self.lock = threading.RLock()
 
     def _path(self, sheet: str) -> Path:
         return self.dir / f"{sheet}.csv"
@@ -43,12 +56,14 @@ class LocalStore:
     def _save(self, sheet: str, df: pd.DataFrame) -> None:
         df.reindex(columns=SCHEMA[sheet]).to_csv(self._path(sheet), index=False)
 
+    @_locked
     def append(self, sheet: str, rows: list[dict]) -> None:
         if not rows:
             return
         df = pd.concat([self.all(sheet), pd.DataFrame(rows).astype(str)], ignore_index=True)
         self._save(sheet, df)
 
+    @_locked
     def replace_where(self, sheet: str, col: str, value: str, rows: list[dict]) -> None:
         df = self.all(sheet)
         df = df[df[col] != str(value)]
@@ -56,9 +71,11 @@ class LocalStore:
             df = pd.concat([df, pd.DataFrame(rows).astype(str)], ignore_index=True)
         self._save(sheet, df)
 
+    @_locked
     def replace_all(self, sheet: str, rows: list[dict]) -> None:
         self._save(sheet, pd.DataFrame(rows, columns=SCHEMA[sheet]).astype(str))
 
+    @_locked
     def update_where(self, sheet: str, match: dict, updates: dict) -> int:
         df = self.all(sheet)
         mask = pd.Series(True, index=df.index)
@@ -82,6 +99,7 @@ class SheetsStore:
         self.sh = self.gc.open_by_key(spreadsheet_id)
         self._cache: dict[str, tuple[float, pd.DataFrame]] = {}
         self._ws: dict[str, object] = {}
+        self.lock = threading.RLock()
         for name in SCHEMA:
             self._worksheet(name)
 
@@ -112,6 +130,7 @@ class SheetsStore:
     def _invalidate(self, sheet: str) -> None:
         self._cache.pop(sheet, None)
 
+    @_locked
     def append(self, sheet: str, rows: list[dict]) -> None:
         if not rows:
             return
@@ -128,6 +147,7 @@ class SheetsStore:
         ws.update(data, "A1", value_input_option="USER_ENTERED")
         self._invalidate(sheet)
 
+    @_locked
     def replace_where(self, sheet: str, col: str, value: str, rows: list[dict]) -> None:
         self._invalidate(sheet)
         df = self.all(sheet)
@@ -136,9 +156,11 @@ class SheetsStore:
             df = pd.concat([df, pd.DataFrame(rows).astype(str)], ignore_index=True)
         self._rewrite(sheet, df)
 
+    @_locked
     def replace_all(self, sheet: str, rows: list[dict]) -> None:
         self._rewrite(sheet, pd.DataFrame(rows, columns=SCHEMA[sheet]).astype(str))
 
+    @_locked
     def update_where(self, sheet: str, match: dict, updates: dict) -> int:
         self._invalidate(sheet)
         df = self.all(sheet)

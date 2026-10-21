@@ -16,6 +16,17 @@ BULAN = ["", "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli",
          "Agustus", "September", "Oktober", "November", "Desember"]
 
 
+HARI = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
+
+
+def tanggal_panjang(d: date) -> str:
+    return f"{HARI[d.weekday()]}, {d.day} {BULAN[d.month]} {d.year}"
+
+
+def tanggal_pendek(d: date) -> str:
+    return f"{d.day} {BULAN[d.month][:3]}"
+
+
 def now_wib() -> datetime:
     return datetime.now(WIB)
 
