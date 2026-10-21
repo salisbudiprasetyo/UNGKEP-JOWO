@@ -18,11 +18,13 @@ if not services.is_admin():
 
 if st.button("← Beranda", key="kembali"):
     st.switch_page("pages_app/beranda.py")
-st.markdown('<div class="hero"><h1>ADMIN</h1><p>UNGKEP JOWO</p></div>', unsafe_allow_html=True)
+st.markdown('<div class="hero"><h1>ADMIN</h1><div class="sub">UNGKEP JOWO</div></div>', unsafe_allow_html=True)
 
-KATEGORI = ["Nasi", "Ayam Sayur", "Lauk", "Minuman", "Lain-lain"]
+KAT_MASTER = ["Nasi", "Lauk", "Lain-lain"]                 # menu master: makanan saja
+KAT_MAKANAN = ["Nasi", "Ayam Sayur", "Lauk", "Lain-lain"]  # urutan tampil (Ayam Sayur = data lama)
 
-tab_harian, tab_master, tab_sandi, tab_pelanggan = st.tabs(["Menu harian", "Menu master", "Sandi", "Pelanggan"])
+tab_harian, tab_master, tab_minuman, tab_sandi, tab_pelanggan, tab_awal = st.tabs(
+    ["Menu harian", "Menu master", "Minuman", "Sandi", "Pelanggan", "Data awal"])
 
 
 def _angka(x, default=0.0):
@@ -34,10 +36,12 @@ def _angka(x, default=0.0):
 
 # ---------------------------------------------------------------- menu master
 with tab_master:
-    st.caption("Daftar semua menu beserta harga bawaan dan modal (HPP). Harga bisa kamu ubah lagi tiap hari di tab Menu harian.")
+    st.caption("Makanan saja: nasi, lauk, dan lain-lain (kerupuk). Harga bawaan bisa kamu ubah lagi tiap hari di tab Menu harian. "
+               "Minuman diatur di tab Minuman.")
     master = store.all("Menu")
+    master = master[master["kategori"] != "Minuman"] if not master.empty else master
     ed = pd.DataFrame({
-        "kategori": master["kategori"].replace("", KATEGORI[0]) if not master.empty else pd.Series(dtype=str),
+        "kategori": master["kategori"].replace("", KAT_MASTER[0]) if not master.empty else pd.Series(dtype=str),
         "nama": master["nama"] if not master.empty else pd.Series(dtype=str),
         "harga": master["harga"].map(_angka) if not master.empty else pd.Series(dtype=float),
         "hpp": master["hpp"].map(_angka) if not master.empty else pd.Series(dtype=float),
@@ -46,7 +50,7 @@ with tab_master:
     hasil = st.data_editor(
         ed, num_rows="dynamic", width="stretch", hide_index=True, key="ed_master",
         column_config={
-            "kategori": st.column_config.SelectboxColumn("Jenis", options=KATEGORI, required=True),
+            "kategori": st.column_config.SelectboxColumn("Jenis", options=KAT_MASTER + [k for k in sorted(set(ed["kategori"])) if k not in KAT_MASTER], required=True),
             "nama": st.column_config.TextColumn("Nama menu", required=True),
             "harga": st.column_config.NumberColumn("Harga jual", min_value=0, step=500, format="%d"),
             "hpp": st.column_config.NumberColumn("Modal (HPP)", min_value=0, step=500, format="%d"),
@@ -59,7 +63,7 @@ with tab_master:
             if not nm or nm.lower() in ada:
                 continue
             ada.add(nm.lower())
-            rows.append({"id": f"m{i:03d}", "kategori": r.kategori or KATEGORI[0], "nama": nm,
+            rows.append({"id": f"m{i:03d}", "kategori": r.kategori or KAT_MASTER[0], "nama": nm,
                          "harga": int(_angka(r.harga)), "hpp": int(_angka(r.hpp)), "aktif": "1" if r.aktif else "0"})
         store.replace_all("Menu", rows)
         st.success(f"{len(rows)} menu tersimpan.")
@@ -87,7 +91,7 @@ with tab_harian:
         semua_nama = master["nama"].tolist()
 
         pilihan_harian = []
-        for kat in KATEGORI:
+        for kat in KAT_MAKANAN:
             sub = master[master["kategori"] == kat]
             if sub.empty:
                 continue
@@ -114,6 +118,21 @@ with tab_harian:
                         "tanggal": tgl.isoformat(), "menu_id": m.id, "kategori": m.kategori, "nama": m.nama,
                         "harga": int(harga), "hpp": int(_angka(t.hpp) if t else _angka(m.hpp)),
                         "batas_stok": 1 if batasi else 0, "stok": int(stok) if batasi else "", "alternatif": alt})
+        # minuman: otomatis semua yang dicentang "ready" di tab Minuman
+        drinks = store.all("Minuman")
+        drinks = drinks[drinks["ready"] == "1"] if not drinks.empty else drinks
+        st.markdown("**MINUMAN READY**")
+        if drinks.empty:
+            st.warning("Belum ada minuman yang dicentang ready. Atur dulu di tab Minuman.")
+        else:
+            with st.container(border=True):
+                st.caption(f"{len(drinks)} minuman ikut otomatis (ubah di tab Minuman):")
+                st.write(" · ".join(f"{(r.nama + ' ' + r.varian).strip()} ({logic.rupiah(_angka(r.harga))})" for r in drinks.itertuples()))
+            for r in drinks.itertuples():
+                nm = (r.nama + " " + r.varian).strip()
+                pilihan_harian.append({"tanggal": tgl.isoformat(), "menu_id": "", "kategori": "Minuman", "nama": nm,
+                                       "harga": int(_angka(r.harga)), "hpp": int(_angka(r.hpp)),
+                                       "batas_stok": 0, "stok": "", "alternatif": ""})
         st.caption(f"{len(pilihan_harian)} menu dipilih.")
         if st.button("Unggah menu", type="primary", width="stretch"):
             if not pilihan_harian:
@@ -122,6 +141,69 @@ with tab_harian:
                 store.replace_where("MenuHarian", "tanggal", tgl.isoformat(), pilihan_harian)
                 st.success(f"Menu {tgl.strftime('%d/%m/%Y')} terunggah ({len(pilihan_harian)} item). "
                            "Tabel Pesanan Hari Ini di beranda ikut berganti.")
+
+# ---------------------------------------------------------------- minuman
+with tab_minuman:
+    st.caption("Centang **Ready** untuk minuman/varian yang tersedia. Yang dicentang otomatis masuk menu harian. "
+               "Tambah baris baru di bagian bawah tabel untuk varian lain.")
+    dr = store.all("Minuman")
+    tabel = pd.DataFrame({
+        "ready": (dr["ready"] == "1") if not dr.empty else pd.Series(dtype=bool),
+        "nama": dr["nama"] if not dr.empty else pd.Series(dtype=str),
+        "varian": dr["varian"] if not dr.empty else pd.Series(dtype=str),
+        "harga": dr["harga"].map(_angka) if not dr.empty else pd.Series(dtype=float),
+        "hpp": dr["hpp"].map(_angka) if not dr.empty else pd.Series(dtype=float),
+    })
+    c1, c2 = st.columns(2)
+    if c1.button("Semua ready", width="stretch") and not dr.empty:
+        store.replace_all("Minuman", [{**r._asdict(), "ready": "1"} for r in dr.itertuples(index=False)])
+        st.rerun()
+    if c2.button("Kosongkan", width="stretch") and not dr.empty:
+        store.replace_all("Minuman", [{**r._asdict(), "ready": "0"} for r in dr.itertuples(index=False)])
+        st.rerun()
+    hasil_m = st.data_editor(
+        tabel, num_rows="dynamic", width="stretch", hide_index=True, key="ed_minuman",
+        column_config={
+            "ready": st.column_config.CheckboxColumn("Ready"),
+            "nama": st.column_config.TextColumn("Minuman", required=True),
+            "varian": st.column_config.TextColumn("Varian"),
+            "harga": st.column_config.NumberColumn("Harga", min_value=0, step=500, format="%d"),
+            "hpp": st.column_config.NumberColumn("Modal", min_value=0, step=500, format="%d"),
+        })
+    st.caption(f"{int(hasil_m['ready'].sum())} dari {len(hasil_m)} minuman ready.")
+    if st.button("Simpan minuman", type="primary", width="stretch"):
+        rows, ada = [], set()
+        for r in hasil_m.dropna(subset=["nama"]).itertuples():
+            nm, vr = str(r.nama).strip(), str(r.varian or "").strip()
+            if not nm or (nm.lower(), vr.lower()) in ada:
+                continue
+            ada.add((nm.lower(), vr.lower()))
+            rows.append({"nama": nm, "varian": vr, "harga": int(_angka(r.harga)), "hpp": int(_angka(r.hpp)),
+                         "ready": "1" if r.ready else "0"})
+        store.replace_all("Minuman", rows)
+        st.success(f"{len(rows)} minuman tersimpan. Unggah ulang menu harian agar perubahan ikut masuk.")
+        st.rerun()
+
+# ---------------------------------------------------------------- data awal
+with tab_awal:
+    import data_awal
+    ring = data_awal.ringkasan()
+    st.markdown("**Muat data awal dari REKAP_PEMBELIAN.xlsx**")
+    st.caption("Dipakai sekali di awal. Berisi daftar pelanggan, riwayat pesanan 20 Okt, menu master (nasi, lauk, kerupuk), "
+               "daftar minuman, dan menu 20–21 Okt (ayam bumbu rujak + sayur asem Rp7.000 untuk hari ini).")
+    with st.container(border=True):
+        st.markdown(f"- **{ring['pelanggan']}** pelanggan (sandi awal)\n- **{ring['riwayat']}** pesanan riwayat, total **{logic.rupiah(ring['total'])}**\n"
+                    f"- **{ring['menu']}** menu master dan **{ring['minuman']}** minuman")
+    st.warning("Menu master dan daftar minuman yang ada sekarang akan **diganti**. Pelanggan yang sudah terdaftar tidak diubah, "
+               "dan aman dijalankan ulang.")
+    ok = st.checkbox("Saya mengerti, lanjutkan")
+    if st.button("Muat data awal", type="primary", disabled=not ok, width="stretch"):
+        hasil = data_awal.muat(store, services.sandi_awal())
+        st.session_state["_awal_ok"] = (f"Selesai: {hasil['pelanggan_baru']} pelanggan baru, {hasil['pesanan']} pesanan riwayat "
+                                        f"({', '.join(hasil['tanggal'])}). Menu master, minuman, dan menu 20–21 Okt sudah terisi.")
+        st.rerun()
+    if (pesan_ok := st.session_state.pop("_awal_ok", None)):
+        st.success(pesan_ok)
 
 # ---------------------------------------------------------------- sandi
 with tab_sandi:

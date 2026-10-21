@@ -24,6 +24,8 @@ SCHEMA: dict[str, list[str]] = {
     "Permintaan": ["waktu", "nama", "jenis", "status"],
     # daftar menu master (harga bawaan + modal/HPP)
     "Menu": ["id", "kategori", "nama", "harga", "hpp", "aktif"],
+    # daftar minuman + varian; kolom ready dicentang admin (otomatis masuk menu harian)
+    "Minuman": ["nama", "varian", "harga", "hpp", "ready"],
     # menu yang diunggah admin untuk tanggal tertentu (harga bisa beda dari master)
     "MenuHarian": ["tanggal", "menu_id", "kategori", "nama", "harga", "hpp", "batas_stok", "stok", "alternatif"],
     # REKAP KASBON: satu baris per item yang dipesan (siapa, apa, harga, tanggal, status bayar)

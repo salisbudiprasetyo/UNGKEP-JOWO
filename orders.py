@@ -12,10 +12,11 @@ import logic
 KATEGORI = ["Nasi", "Ayam Sayur", "Lauk", "Minuman", "Lain-lain"]
 UTAMA = {"Nasi", "Ayam Sayur", "Lauk"}
 KELOMPOK = {
-    1: "NASI + AYAM SAYUR LENGKAP",
-    2: "AYAM SAYUR LENGKAP (TANPA NASI)",
+    1: "NASI + LAUK",
+    2: "LAUK SAJA (TANPA NASI)",
     3: "MINUMAN & LAINNYA SAJA",
 }
+LAUK = {"Ayam Sayur", "Lauk"}  # kategori yang dihitung sebagai lauk utama
 
 
 def _num(x, d=0.0) -> float:
@@ -240,7 +241,7 @@ def kelompok_dari(items: list[dict]) -> int:
     kat = {i["kategori"] for i in items}
     if "Nasi" in kat:
         return 1
-    if kat & {"Ayam Sayur", "Lauk"}:
+    if kat & LAUK:
         return 2
     return 3
 

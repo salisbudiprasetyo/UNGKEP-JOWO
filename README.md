@@ -1,4 +1,4 @@
-# UNGKEP JOWO - Rekap Pembelian (tahap 1-3)
+# UNGKEP JOWO - Rekap Pembelian (tahap 1-3 + data awal)
 
 ## Jalankan lokal (uji coba, data di folder data/)
 1. pip install -r requirements.txt
@@ -23,3 +23,6 @@
 - Periode kasbon: tanggal 11 s/d 10 bulan berikutnya.
 - Pelanggan bisa pesan/ubah/batal sampai 10:15 WIB pada hari H; admin bisa kapan saja.
 - Perubahan dari pelanggan baru berlaku setelah admin konfirmasi; sampai itu pesanan lama yang dihitung.
+
+## Data awal (sekali saja)
+Admin > tab **Data awal** > centang > **Muat data awal**. Mengisi 26 pelanggan, riwayat pesanan 20 Okt, menu master (nasi, lauk, kerupuk), daftar minuman (centang Ready), dan menu 20-21 Okt. Aman diulang.

@@ -46,23 +46,33 @@ def dialog_pesan(tgl_iso: str, nama: str, langsung: bool = False):
         sub = menu[menu["kategori"] == kat]
         if sub.empty:
             continue
-        st.markdown(f'<div class="kat">{kat}</div>', unsafe_allow_html=True)
-        for r in sub.itertuples():
-            cap = sisa.get(r.nama)
-            harga[r.nama] = lama[r.nama]["harga"] if r.nama in lama else float(r.harga)
-            if cap is not None and cap == 0:
-                alt = f" Coba: <b>{_esc(r.alternatif)}</b>." if r.alternatif else ""
-                st.markdown(f'<div class="habis"><b>{_esc(r.nama)}</b> sedang habis.{alt}</div>', unsafe_allow_html=True)
-                pilihan[r.nama] = 0
-                continue
-            ada_qty = lama[r.nama]["qty"] if r.nama in lama else 0
-            maks = max(5, ada_qty) if cap is None else cap
-            opsi = list(range(0, maks + 1))
-            label = f"{r.nama} · {logic.rupiah(harga[r.nama])}" + (f"  (sisa {cap})" if cap is not None else "")
-            q = st.segmented_control(label, opsi, default=min(ada_qty, maks), selection_mode="single",
-                                     format_func=lambda n: "–" if n == 0 else str(n), width="stretch",
-                                     key=f"q_{tgl_iso}_{nama}_{r.nama}")
-            pilihan[r.nama] = int(q or 0)
+        if kat == "Minuman":
+            wadah = st.expander(f"MINUMAN ({len(sub)} pilihan) – ketuk untuk memilih",
+                                expanded=any(r.nama in lama for r in sub.itertuples()))
+        else:
+            st.markdown(f'<div class="kat">{kat}</div>', unsafe_allow_html=True)
+            wadah = st.container()
+        with wadah:
+            for r in sub.itertuples():
+                cap = sisa.get(r.nama)
+                harga[r.nama] = lama[r.nama]["harga"] if r.nama in lama else float(r.harga)
+                if cap is not None and cap == 0:
+                    alt = f" Coba: <b>{_esc(r.alternatif)}</b>." if r.alternatif else ""
+                    st.markdown(f'<div class="habis"><b>{_esc(r.nama)}</b> sedang habis.{alt}</div>', unsafe_allow_html=True)
+                    pilihan[r.nama] = 0
+                    continue
+                ada_qty = lama[r.nama]["qty"] if r.nama in lama else 0
+                maks = max(5, ada_qty) if cap is None else cap
+                opsi = list(range(0, maks + 1))
+                label = f"{r.nama} · {logic.rupiah(harga[r.nama])}" + (f"  (sisa {cap})" if cap is not None else "")
+                q = st.segmented_control(label, opsi, default=min(ada_qty, maks), selection_mode="single",
+                                         format_func=lambda n: "–" if n == 0 else str(n), width="stretch",
+                                         key=f"q_{tgl_iso}_{nama}_{r.nama}")
+                pilihan[r.nama] = int(q or 0)
+        if kat == "Minuman":
+            dipilih = [f"{n} ×{q}" for n, q in pilihan.items() if q and n in set(sub["nama"])]
+            if dipilih:
+                st.caption("Minuman dipilih: " + " · ".join(dipilih))
 
     catatan = st.text_input("Catatan (opsional)", value=orders.catatan_pesanan(store, tgl, nama),
                             placeholder="mis. sambal dipisah, nasi sedikit", key=f"cat_{tgl_iso}_{nama}")
@@ -185,26 +195,24 @@ def _rekap_html(orders_: list[dict]) -> str:
 
 
 def _rekap_akhir_html(semua: list[dict], admin: bool) -> str:
-    paket = ayam_saja = nasi_saja = 0
+    paket = lauk_saja = nasi_saja = 0
     for o in semua:
-        q = {"Nasi": 0, "Ayam Sayur": 0}
-        for i in o["items"]:
-            if i["kategori"] in q:
-                q[i["kategori"]] += i["qty"]
-        p = min(q["Nasi"], q["Ayam Sayur"])
+        nasi = sum(i["qty"] for i in o["items"] if i["kategori"] == "Nasi")
+        lauk = sum(i["qty"] for i in o["items"] if i["kategori"] in orders.LAUK)
+        p = min(nasi, lauk)
         paket += p
-        ayam_saja += q["Ayam Sayur"] - p
-        nasi_saja += q["Nasi"] - p
+        lauk_saja += lauk - p
+        nasi_saja += nasi - p
     rek = orders.rekap(semua)
     per_kat: dict[str, list[tuple[str, int]]] = {}
     kat_item = {i["item"]: i["kategori"] for o in semua for i in o["items"]}
     for nm, q in rek.items():
         per_kat.setdefault(kat_item[nm], []).append((nm, q))
     rows = ['<tr class="sec"><td colspan="2">PORSI</td></tr>',
-            f"<tr><td>Nasi + Ayam sayur lengkap</td><td>{paket}</td></tr>",
-            f"<tr><td>Ayam sayur lengkap (tanpa nasi)</td><td>{ayam_saja}</td></tr>"]
+            f"<tr><td>Nasi + Lauk (paket)</td><td>{paket}</td></tr>",
+            f"<tr><td>Lauk saja (tanpa nasi)</td><td>{lauk_saja}</td></tr>"]
     if nasi_saja:
-        rows.append(f"<tr><td>Nasi saja (tanpa ayam)</td><td>{nasi_saja}</td></tr>")
+        rows.append(f"<tr><td>Nasi saja (tanpa lauk)</td><td>{nasi_saja}</td></tr>")
     for kat in KATEGORI:
         if kat in per_kat:
             rows.append(f'<tr class="sec"><td colspan="2">{kat.upper()}</td></tr>')
