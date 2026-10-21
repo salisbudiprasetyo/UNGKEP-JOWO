@@ -2,30 +2,40 @@
  "pelanggan": [
   "BUDI",
   "LENI",
-  "RIEN",
   "FANNY",
+  "RIEN",
+  "GALIH",
   "GUNAWAN",
   "JARWO",
-  "DODIK",
-  "DANI",
-  "PAMBUDI",
   "HABIB",
+  "DODIK",
+  "PAMBUDI",
+  "DANI",
+  "ERIK KAMA",
+  "RIVAL",
+  "YUNUS",
   "ARIF",
+  "ADIT SUPLAY",
   "THOFA",
+  "RIZKY SK",
   "ABI",
+  "AJI SK",
   "ARNOLD",
   "CLARA",
   "YUSUF",
-  "PUDIN",
-  "GALIH",
   "RIZAL",
-  "RIZKY SK",
-  "GIRAS",
-  "ERIK QC",
-  "ROFIQ",
-  "SULTON",
+  "PUDIN",
   "TEO",
-  "ERIK SK"
+  "VICKY",
+  "GIRAS",
+  "NOVA",
+  "ERIK QC",
+  "FARHAN",
+  "ROFIQ",
+  "ADITYA NUR",
+  "SULTON",
+  "DIO",
+  "REZA"
  ],
  "menu": [
   {
@@ -62,6 +72,22 @@
   },
   {
    "id": "m005",
+   "kategori": "Lauk",
+   "nama": "Telur bumbu rujak",
+   "harga": 7000,
+   "hpp": 0,
+   "aktif": "1"
+  },
+  {
+   "id": "m006",
+   "kategori": "Lauk",
+   "nama": "Sate Komo + sayur bening (free sambel terasi)",
+   "harga": 7000,
+   "hpp": 0,
+   "aktif": "1"
+  },
+  {
+   "id": "m007",
    "kategori": "Lain-lain",
    "nama": "Kerupuk",
    "harga": 1000,
@@ -170,7 +196,7 @@
   },
   {
    "nama": "Es Good Day",
-   "varian": "",
+   "varian": "Freeze",
    "harga": 5000,
    "hpp": 0,
    "ready": "1"
@@ -367,7 +393,7 @@
   {
    "tanggal": "2026-10-20",
    "kategori": "Minuman",
-   "nama": "Es Good Day",
+   "nama": "Es Good Day Freeze",
    "harga": 5000,
    "hpp": 0,
    "batas_stok": 0,
@@ -398,6 +424,16 @@
    "tanggal": "2026-10-21",
    "kategori": "Lauk",
    "nama": "Ayam bumbu rujak + sayur asem",
+   "harga": 7000,
+   "hpp": 0,
+   "batas_stok": 0,
+   "stok": "",
+   "alternatif": ""
+  },
+  {
+   "tanggal": "2026-10-21",
+   "kategori": "Lauk",
+   "nama": "Telur bumbu rujak",
    "harga": 7000,
    "hpp": 0,
    "batas_stok": 0,
@@ -557,7 +593,7 @@
   {
    "tanggal": "2026-10-21",
    "kategori": "Minuman",
-   "nama": "Es Good Day",
+   "nama": "Es Good Day Freeze",
    "harga": 5000,
    "hpp": 0,
    "batas_stok": 0,
@@ -566,6 +602,196 @@
   },
   {
    "tanggal": "2026-10-21",
+   "kategori": "Minuman",
+   "nama": "Es Kukubima susu",
+   "harga": 8000,
+   "hpp": 0,
+   "batas_stok": 0,
+   "stok": "",
+   "alternatif": ""
+  },
+  {
+   "tanggal": "2026-10-22",
+   "kategori": "Nasi",
+   "nama": "Nasi",
+   "harga": 3000,
+   "hpp": 0,
+   "batas_stok": 0,
+   "stok": "",
+   "alternatif": ""
+  },
+  {
+   "tanggal": "2026-10-22",
+   "kategori": "Lauk",
+   "nama": "Sate Komo + sayur bening (free sambel terasi)",
+   "harga": 7000,
+   "hpp": 0,
+   "batas_stok": 0,
+   "stok": "",
+   "alternatif": ""
+  },
+  {
+   "tanggal": "2026-10-22",
+   "kategori": "Lain-lain",
+   "nama": "Kerupuk",
+   "harga": 1000,
+   "hpp": 0,
+   "batas_stok": 0,
+   "stok": "",
+   "alternatif": ""
+  },
+  {
+   "tanggal": "2026-10-22",
+   "kategori": "Minuman",
+   "nama": "Teh panas",
+   "harga": 3000,
+   "hpp": 0,
+   "batas_stok": 0,
+   "stok": "",
+   "alternatif": ""
+  },
+  {
+   "tanggal": "2026-10-22",
+   "kategori": "Minuman",
+   "nama": "Es teh",
+   "harga": 3000,
+   "hpp": 0,
+   "batas_stok": 0,
+   "stok": "",
+   "alternatif": ""
+  },
+  {
+   "tanggal": "2026-10-22",
+   "kategori": "Minuman",
+   "nama": "Es Americano",
+   "harga": 8000,
+   "hpp": 0,
+   "batas_stok": 0,
+   "stok": "",
+   "alternatif": ""
+  },
+  {
+   "tanggal": "2026-10-22",
+   "kategori": "Minuman",
+   "nama": "Es teh jumbo",
+   "harga": 5000,
+   "hpp": 0,
+   "batas_stok": 0,
+   "stok": "",
+   "alternatif": ""
+  },
+  {
+   "tanggal": "2026-10-22",
+   "kategori": "Minuman",
+   "nama": "Es susu Indomilk",
+   "harga": 8000,
+   "hpp": 0,
+   "batas_stok": 0,
+   "stok": "",
+   "alternatif": ""
+  },
+  {
+   "tanggal": "2026-10-22",
+   "kategori": "Minuman",
+   "nama": "Es susu Dancow",
+   "harga": 8000,
+   "hpp": 0,
+   "batas_stok": 0,
+   "stok": "",
+   "alternatif": ""
+  },
+  {
+   "tanggal": "2026-10-22",
+   "kategori": "Minuman",
+   "nama": "Es Josshua",
+   "harga": 8000,
+   "hpp": 0,
+   "batas_stok": 0,
+   "stok": "",
+   "alternatif": ""
+  },
+  {
+   "tanggal": "2026-10-22",
+   "kategori": "Minuman",
+   "nama": "Es Nutrisari Mangga",
+   "harga": 5000,
+   "hpp": 0,
+   "batas_stok": 0,
+   "stok": "",
+   "alternatif": ""
+  },
+  {
+   "tanggal": "2026-10-22",
+   "kategori": "Minuman",
+   "nama": "Es Nutrisari Anggur",
+   "harga": 5000,
+   "hpp": 0,
+   "batas_stok": 0,
+   "stok": "",
+   "alternatif": ""
+  },
+  {
+   "tanggal": "2026-10-22",
+   "kategori": "Minuman",
+   "nama": "Es Nutrisari Jeruk",
+   "harga": 5000,
+   "hpp": 0,
+   "batas_stok": 0,
+   "stok": "",
+   "alternatif": ""
+  },
+  {
+   "tanggal": "2026-10-22",
+   "kategori": "Minuman",
+   "nama": "Es Marimas Jambu",
+   "harga": 3000,
+   "hpp": 0,
+   "batas_stok": 0,
+   "stok": "",
+   "alternatif": ""
+  },
+  {
+   "tanggal": "2026-10-22",
+   "kategori": "Minuman",
+   "nama": "Es Marimas Jeruk",
+   "harga": 3000,
+   "hpp": 0,
+   "batas_stok": 0,
+   "stok": "",
+   "alternatif": ""
+  },
+  {
+   "tanggal": "2026-10-22",
+   "kategori": "Minuman",
+   "nama": "Es Marimas Mangga",
+   "harga": 3000,
+   "hpp": 0,
+   "batas_stok": 0,
+   "stok": "",
+   "alternatif": ""
+  },
+  {
+   "tanggal": "2026-10-22",
+   "kategori": "Minuman",
+   "nama": "Es Marimas Mangga Susu",
+   "harga": 3000,
+   "hpp": 0,
+   "batas_stok": 0,
+   "stok": "",
+   "alternatif": ""
+  },
+  {
+   "tanggal": "2026-10-22",
+   "kategori": "Minuman",
+   "nama": "Es Good Day Freeze",
+   "harga": 5000,
+   "hpp": 0,
+   "batas_stok": 0,
+   "stok": "",
+   "alternatif": ""
+  },
+  {
+   "tanggal": "2026-10-22",
    "kategori": "Minuman",
    "nama": "Es Kukubima susu",
    "harga": 8000,
@@ -601,12 +827,60 @@
    "harga": 3000
   },
   {
+   "tanggal": "2026-10-21",
+   "pelanggan": "BUDI",
+   "kategori": "Nasi",
+   "item": "Nasi",
+   "qty": 1,
+   "harga": 3000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "BUDI",
+   "kategori": "Lauk",
+   "item": "Ayam bumbu rujak + sayur asem",
+   "qty": 1,
+   "harga": 7000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "BUDI",
+   "kategori": "Minuman",
+   "item": "Teh panas",
+   "qty": 1,
+   "harga": 3000
+  },
+  {
    "tanggal": "2026-10-20",
    "pelanggan": "LENI",
    "kategori": "Lauk",
    "item": "Ayam urap-urap",
    "qty": 1,
    "harga": 7000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "FANNY",
+   "kategori": "Nasi",
+   "item": "Nasi",
+   "qty": 1,
+   "harga": 3000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "FANNY",
+   "kategori": "Lauk",
+   "item": "Ayam bumbu rujak + sayur asem",
+   "qty": 1,
+   "harga": 7000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "FANNY",
+   "kategori": "Lain-lain",
+   "item": "Kerupuk",
+   "qty": 1,
+   "harga": 1000
   },
   {
    "tanggal": "2026-10-20",
@@ -641,6 +915,30 @@
    "harga": 1000
   },
   {
+   "tanggal": "2026-10-21",
+   "pelanggan": "GALIH",
+   "kategori": "Nasi",
+   "item": "Nasi",
+   "qty": 1,
+   "harga": 3000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "GALIH",
+   "kategori": "Lauk",
+   "item": "Ayam bumbu rujak + sayur asem",
+   "qty": 1,
+   "harga": 7000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "GALIH",
+   "kategori": "Lain-lain",
+   "item": "Kerupuk",
+   "qty": 1,
+   "harga": 1000
+  },
+  {
    "tanggal": "2026-10-20",
    "pelanggan": "GUNAWAN",
    "kategori": "Nasi",
@@ -655,6 +953,22 @@
    "item": "Ayam urap-urap",
    "qty": 1,
    "harga": 7000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "LENI",
+   "kategori": "Lauk",
+   "item": "Ayam bumbu rujak + sayur asem",
+   "qty": 1,
+   "harga": 7000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "LENI",
+   "kategori": "Lain-lain",
+   "item": "Kerupuk",
+   "qty": 1,
+   "harga": 1000
   },
   {
    "tanggal": "2026-10-20",
@@ -681,6 +995,22 @@
    "harga": 3000
   },
   {
+   "tanggal": "2026-10-21",
+   "pelanggan": "HABIB",
+   "kategori": "Nasi",
+   "item": "Nasi",
+   "qty": 1,
+   "harga": 3000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "HABIB",
+   "kategori": "Lauk",
+   "item": "Ayam bumbu rujak + sayur asem",
+   "qty": 1,
+   "harga": 7000
+  },
+  {
    "tanggal": "2026-10-20",
    "pelanggan": "DODIK",
    "kategori": "Nasi",
@@ -703,6 +1033,30 @@
    "item": "Es teh",
    "qty": 1,
    "harga": 3000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "PAMBUDI",
+   "kategori": "Nasi",
+   "item": "Nasi",
+   "qty": 1,
+   "harga": 3000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "PAMBUDI",
+   "kategori": "Lauk",
+   "item": "Ayam bumbu rujak + sayur asem",
+   "qty": 1,
+   "harga": 7000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "PAMBUDI",
+   "kategori": "Minuman",
+   "item": "Es Good Day Freeze",
+   "qty": 1,
+   "harga": 5000
   },
   {
    "tanggal": "2026-10-20",
@@ -721,6 +1075,22 @@
    "harga": 8000
   },
   {
+   "tanggal": "2026-10-21",
+   "pelanggan": "ERIK KAMA",
+   "kategori": "Nasi",
+   "item": "Nasi",
+   "qty": 1,
+   "harga": 3000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "ERIK KAMA",
+   "kategori": "Lauk",
+   "item": "Ayam bumbu rujak + sayur asem",
+   "qty": 1,
+   "harga": 7000
+  },
+  {
    "tanggal": "2026-10-20",
    "pelanggan": "PAMBUDI",
    "kategori": "Nasi",
@@ -735,6 +1105,30 @@
    "item": "Ayam urap-urap",
    "qty": 1,
    "harga": 7000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "RIVAL",
+   "kategori": "Nasi",
+   "item": "Nasi",
+   "qty": 1,
+   "harga": 3000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "RIVAL",
+   "kategori": "Lauk",
+   "item": "Ayam bumbu rujak + sayur asem",
+   "qty": 1,
+   "harga": 7000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "RIVAL",
+   "kategori": "Minuman",
+   "item": "Es Nutrisari Jeruk",
+   "qty": 1,
+   "harga": 5000
   },
   {
    "tanggal": "2026-10-20",
@@ -761,6 +1155,14 @@
    "harga": 8000
   },
   {
+   "tanggal": "2026-10-21",
+   "pelanggan": "YUNUS",
+   "kategori": "Minuman",
+   "item": "Es teh jumbo",
+   "qty": 1,
+   "harga": 5000
+  },
+  {
    "tanggal": "2026-10-20",
    "pelanggan": "ARIF",
    "kategori": "Lauk",
@@ -769,10 +1171,34 @@
    "harga": 7000
   },
   {
+   "tanggal": "2026-10-21",
+   "pelanggan": "ADIT SUPLAY",
+   "kategori": "Minuman",
+   "item": "Es Americano",
+   "qty": 1,
+   "harga": 8000
+  },
+  {
    "tanggal": "2026-10-20",
    "pelanggan": "THOFA",
    "kategori": "Lauk",
    "item": "Ayam urap-urap",
+   "qty": 1,
+   "harga": 7000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "RIZKY SK",
+   "kategori": "Nasi",
+   "item": "Nasi",
+   "qty": 1,
+   "harga": 3000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "RIZKY SK",
+   "kategori": "Lauk",
+   "item": "Telur bumbu rujak",
    "qty": 1,
    "harga": 7000
   },
@@ -791,6 +1217,22 @@
    "item": "Es teh",
    "qty": 1,
    "harga": 3000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "AJI SK",
+   "kategori": "Nasi",
+   "item": "Nasi",
+   "qty": 1,
+   "harga": 3000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "AJI SK",
+   "kategori": "Lauk",
+   "item": "Ayam bumbu rujak + sayur asem",
+   "qty": 1,
+   "harga": 7000
   },
   {
    "tanggal": "2026-10-20",
@@ -809,6 +1251,30 @@
    "harga": 7000
   },
   {
+   "tanggal": "2026-10-21",
+   "pelanggan": "JARWO",
+   "kategori": "Nasi",
+   "item": "Nasi",
+   "qty": 1,
+   "harga": 3000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "JARWO",
+   "kategori": "Lauk",
+   "item": "Ayam bumbu rujak + sayur asem",
+   "qty": 1,
+   "harga": 7000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "JARWO",
+   "kategori": "Minuman",
+   "item": "Es teh",
+   "qty": 1,
+   "harga": 3000
+  },
+  {
    "tanggal": "2026-10-20",
    "pelanggan": "CLARA",
    "kategori": "Minuman",
@@ -823,6 +1289,22 @@
    "item": "Kerupuk",
    "qty": 1,
    "harga": 1000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "GUNAWAN",
+   "kategori": "Nasi",
+   "item": "Nasi",
+   "qty": 1,
+   "harga": 3000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "GUNAWAN",
+   "kategori": "Lauk",
+   "item": "Ayam bumbu rujak + sayur asem",
+   "qty": 1,
+   "harga": 7000
   },
   {
    "tanggal": "2026-10-20",
@@ -849,6 +1331,30 @@
    "harga": 5000
   },
   {
+   "tanggal": "2026-10-21",
+   "pelanggan": "RIZAL",
+   "kategori": "Nasi",
+   "item": "Nasi",
+   "qty": 1,
+   "harga": 3000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "RIZAL",
+   "kategori": "Lauk",
+   "item": "Ayam bumbu rujak + sayur asem",
+   "qty": 1,
+   "harga": 7000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "RIZAL",
+   "kategori": "Lain-lain",
+   "item": "Kerupuk",
+   "qty": 1,
+   "harga": 1000
+  },
+  {
    "tanggal": "2026-10-20",
    "pelanggan": "PUDIN",
    "kategori": "Lauk",
@@ -863,6 +1369,38 @@
    "item": "Es teh",
    "qty": 1,
    "harga": 3000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "TEO",
+   "kategori": "Minuman",
+   "item": "Es Americano",
+   "qty": 1,
+   "harga": 8000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "VICKY",
+   "kategori": "Nasi",
+   "item": "Nasi",
+   "qty": 1,
+   "harga": 3000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "VICKY",
+   "kategori": "Lauk",
+   "item": "Telur bumbu rujak",
+   "qty": 1,
+   "harga": 7000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "VICKY",
+   "kategori": "Minuman",
+   "item": "Es Good Day Freeze",
+   "qty": 1,
+   "harga": 5000
   },
   {
    "tanggal": "2026-10-20",
@@ -889,6 +1427,22 @@
    "harga": 3000
   },
   {
+   "tanggal": "2026-10-21",
+   "pelanggan": "GIRAS",
+   "kategori": "Nasi",
+   "item": "Nasi",
+   "qty": 1,
+   "harga": 3000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "GIRAS",
+   "kategori": "Lauk",
+   "item": "Ayam bumbu rujak + sayur asem",
+   "qty": 1,
+   "harga": 7000
+  },
+  {
    "tanggal": "2026-10-20",
    "pelanggan": "RIZAL",
    "kategori": "Nasi",
@@ -903,6 +1457,14 @@
    "item": "Ayam urap-urap",
    "qty": 1,
    "harga": 7000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "NOVA",
+   "kategori": "Minuman",
+   "item": "Es teh jumbo",
+   "qty": 1,
+   "harga": 5000
   },
   {
    "tanggal": "2026-10-20",
@@ -919,6 +1481,38 @@
    "item": "Telur dadar urap-urap",
    "qty": 1,
    "harga": 7000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "THOFA",
+   "kategori": "Minuman",
+   "item": "Es teh",
+   "qty": 1,
+   "harga": 3000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "YUSUF",
+   "kategori": "Nasi",
+   "item": "Nasi",
+   "qty": 1,
+   "harga": 3000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "YUSUF",
+   "kategori": "Lauk",
+   "item": "Ayam bumbu rujak + sayur asem",
+   "qty": 1,
+   "harga": 7000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "YUSUF",
+   "kategori": "Minuman",
+   "item": "Es Kukubima susu",
+   "qty": 1,
+   "harga": 8000
   },
   {
    "tanggal": "2026-10-20",
@@ -941,6 +1535,22 @@
    "pelanggan": "ERIK QC",
    "kategori": "Lauk",
    "item": "Ayam urap-urap",
+   "qty": 1,
+   "harga": 7000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "FARHAN",
+   "kategori": "Nasi",
+   "item": "Nasi",
+   "qty": 1,
+   "harga": 3000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "FARHAN",
+   "kategori": "Lauk",
+   "item": "Ayam bumbu rujak + sayur asem",
    "qty": 1,
    "harga": 7000
   },
@@ -977,10 +1587,50 @@
    "harga": 1000
   },
   {
+   "tanggal": "2026-10-21",
+   "pelanggan": "ABI",
+   "kategori": "Minuman",
+   "item": "Es Good Day Freeze",
+   "qty": 1,
+   "harga": 5000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "ADITYA NUR",
+   "kategori": "Lauk",
+   "item": "Ayam bumbu rujak + sayur asem",
+   "qty": 1,
+   "harga": 7000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "ADITYA NUR",
+   "kategori": "Minuman",
+   "item": "Es teh jumbo",
+   "qty": 1,
+   "harga": 5000
+  },
+  {
    "tanggal": "2026-10-20",
    "pelanggan": "SULTON",
    "kategori": "Minuman",
    "item": "Es susu Indomilk",
+   "qty": 1,
+   "harga": 8000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "DIO",
+   "kategori": "Lauk",
+   "item": "Ayam bumbu rujak + sayur asem",
+   "qty": 1,
+   "harga": 7000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "DIO",
+   "kategori": "Minuman",
+   "item": "Es Americano",
    "qty": 1,
    "harga": 8000
   },
@@ -1009,8 +1659,24 @@
    "harga": 8000
   },
   {
+   "tanggal": "2026-10-21",
+   "pelanggan": "REZA",
+   "kategori": "Nasi",
+   "item": "Nasi",
+   "qty": 1,
+   "harga": 3000
+  },
+  {
+   "tanggal": "2026-10-21",
+   "pelanggan": "REZA",
+   "kategori": "Lauk",
+   "item": "Ayam bumbu rujak + sayur asem",
+   "qty": 1,
+   "harga": 7000
+  },
+  {
    "tanggal": "2026-10-20",
-   "pelanggan": "ERIK SK",
+   "pelanggan": "ERIK KAMA",
    "kategori": "Nasi",
    "item": "Nasi",
    "qty": 1,
@@ -1018,11 +1684,14 @@
   },
   {
    "tanggal": "2026-10-20",
-   "pelanggan": "ERIK SK",
+   "pelanggan": "ERIK KAMA",
    "kategori": "Lauk",
    "item": "Ayam urap-urap",
    "qty": 1,
    "harga": 7000
   }
+ ],
+ "menu_jika_kosong": [
+  "2026-10-22"
  ]
 }

@@ -25,4 +25,4 @@
 - Perubahan dari pelanggan baru berlaku setelah admin konfirmasi; sampai itu pesanan lama yang dihitung.
 
 ## Data awal (sekali saja)
-Admin > tab **Data awal** > centang > **Muat data awal**. Mengisi 26 pelanggan, riwayat pesanan 20 Okt, menu master (nasi, lauk, kerupuk), daftar minuman (centang Ready), dan menu 20-21 Okt. Aman diulang.
+Admin > tab **Data awal** > centang > **Muat data awal**. Mengisi 36 pelanggan, riwayat pesanan 20 dan 21 Okt (Rp561.000), menu master, daftar minuman (centang Ready), dan menu 20-22 Okt (22 Okt: Sate Komo + sayur bening, harga Rp7.000 - cek lagi). Aman diulang; pesanan 20-21 Okt ditimpa sesuai file, menu 22 Okt tidak menimpa menu yang sudah diunggah admin.

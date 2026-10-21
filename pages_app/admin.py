@@ -189,18 +189,18 @@ with tab_awal:
     import data_awal
     ring = data_awal.ringkasan()
     st.markdown("**Muat data awal dari REKAP_PEMBELIAN.xlsx**")
-    st.caption("Dipakai sekali di awal. Berisi daftar pelanggan, riwayat pesanan 20 Okt, menu master (nasi, lauk, kerupuk), "
-               "daftar minuman, dan menu 20–21 Okt (ayam bumbu rujak + sayur asem Rp7.000 untuk hari ini).")
+    st.caption("Dipakai sekali di awal. Berisi daftar pelanggan, riwayat pesanan 20–21 Okt, menu master (nasi, lauk, kerupuk), "
+               "daftar minuman, dan menu 20–22 Okt (22 Okt: Sate Komo + sayur bening).")
     with st.container(border=True):
         st.markdown(f"- **{ring['pelanggan']}** pelanggan (sandi awal)\n- **{ring['riwayat']}** pesanan riwayat, total **{logic.rupiah(ring['total'])}**\n"
                     f"- **{ring['menu']}** menu master dan **{ring['minuman']}** minuman")
-    st.warning("Menu master dan daftar minuman yang ada sekarang akan **diganti**. Pelanggan yang sudah terdaftar tidak diubah, "
-               "dan aman dijalankan ulang.")
+    st.warning("Menu master, daftar minuman, dan **semua pesanan tanggal 20–21 Okt** yang ada sekarang akan **diganti**. "
+               "Pelanggan yang sudah terdaftar tidak diubah. Menu 22 Okt hanya diisi bila belum kamu unggah. Aman dijalankan ulang.")
     ok = st.checkbox("Saya mengerti, lanjutkan")
     if st.button("Muat data awal", type="primary", disabled=not ok, width="stretch"):
         hasil = data_awal.muat(store, services.sandi_awal())
         st.session_state["_awal_ok"] = (f"Selesai: {hasil['pelanggan_baru']} pelanggan baru, {hasil['pesanan']} pesanan riwayat "
-                                        f"({', '.join(hasil['tanggal'])}). Menu master, minuman, dan menu 20–21 Okt sudah terisi.")
+                                        f"({', '.join(hasil['tanggal'])}). Menu master, minuman, dan menu 20–22 Okt sudah terisi.")
         st.rerun()
     if (pesan_ok := st.session_state.pop("_awal_ok", None)):
         st.success(pesan_ok)

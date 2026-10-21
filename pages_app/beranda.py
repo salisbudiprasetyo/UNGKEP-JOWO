@@ -153,7 +153,7 @@ st.caption("Angka = belanja per hari (Rp) · geser tabel untuk melihat tanggal l
 # geser tabel otomatis ke tanggal hari ini (bila skrip diizinkan browser; kalau tidak, tabel tetap bisa digeser manual)
 components.html("""<script>
 (function(){var n=0,t=setInterval(function(){try{var d=window.parent.document,w=d.querySelector('.rekap-wrap'),h=d.querySelector('th.hari-ini');
-if(w&&h){w.scrollLeft=Math.max(0,h.offsetLeft-150);clearInterval(t);}}catch(e){clearInterval(t);} if(++n>20)clearInterval(t);},150);})();
+if(w&&h){w.scrollLeft=Math.max(0,h.offsetLeft-215);clearInterval(t);}}catch(e){clearInterval(t);} if(++n>20)clearInterval(t);},150);})();
 </script>""", height=0)
 
 # ---- tombol pesan (pelanggan)

@@ -30,6 +30,9 @@ def muat(store, sandi_awal: str) -> dict:
             ada.add(nm.lower())
             baru.append({"nama": nm, "sandi_hash": logic.hash_sandi(sandi_awal), "role": "pelanggan", "aktif": "1", "dibuat": sekarang})
     store.append("Pelanggan", baru)
+    # nama yang diganti (mis. ERIK SK -> ERIK KAMA): akun lama dinonaktifkan agar tidak dobel
+    for lama in d.get("pelanggan_diganti", {}):
+        store.update_where("Pelanggan", {"nama": lama, "role": "pelanggan"}, {"aktif": "0"})
 
     store.replace_all("Menu", d["menu"])
     store.replace_all("Minuman", d["minuman"])
@@ -40,17 +43,27 @@ def muat(store, sandi_awal: str) -> dict:
         r = dict(r)
         r["menu_id"] = id_menu.get(r["nama"], "")
         per_tgl.setdefault(r["tanggal"], []).append(r)
+    sudah_ada = set(store.all("MenuHarian")["tanggal"])
     for tgl, rows in per_tgl.items():
+        # tanggal bertanda "jika kosong" (menu besok) tidak menimpa menu yang sudah diunggah admin
+        if tgl in d.get("menu_jika_kosong", []) and tgl in sudah_ada:
+            continue
         store.replace_where("MenuHarian", "tanggal", tgl, rows)
 
-    pesanan: dict[tuple[str, str], list[dict]] = {}
+    # semua pesanan pada tanggal yang ada di file diganti seluruhnya (aman diulang)
+    # catatan: riwayat lama di tanggal itu (mis. revisi menunggu) ikut dibersihkan
+    for t in sorted({r["tanggal"] for r in d["riwayat"]}):
+        store.replace_where("Revisi", "tanggal", t, [])
+    per_tanggal: dict[str, list[dict]] = {}
+    pesanan: set[tuple[str, str]] = set()
     for r in d["riwayat"]:
-        pesanan.setdefault((r["tanggal"], r["pelanggan"]), []).append(r)
-    for (tgl_iso, nama), items in pesanan.items():
-        tgl = date.fromisoformat(tgl_iso)
-        rows = orders._baris(tgl, nama, [{"kategori": i["kategori"], "item": i["item"], "qty": i["qty"],
-                                           "harga": i["harga"], "hpp": 0} for i in items], "", "Disetujui", f"{tgl_iso}T08:00:00+07:00")
-        store.replace_where("Kasbon", "order_id", orders.order_id(tgl, nama), rows)
+        tgl = date.fromisoformat(r["tanggal"])
+        per_tanggal.setdefault(r["tanggal"], []).extend(orders._baris(
+            tgl, r["pelanggan"], [{"kategori": r["kategori"], "item": r["item"], "qty": r["qty"], "harga": r["harga"], "hpp": 0}],
+            "", "Disetujui", f"{r['tanggal']}T08:00:00+07:00"))
+        pesanan.add((r["tanggal"], r["pelanggan"]))
+    for tgl_iso, rows in per_tanggal.items():
+        store.replace_where("Kasbon", "tanggal", tgl_iso, rows)
     for tgl_iso in sorted({t for t, _ in pesanan}):
         orders.simpan_record(store, date.fromisoformat(tgl_iso))
     return {"pelanggan_baru": len(baru), "pesanan": len(pesanan), "tanggal": sorted({t for t, _ in pesanan})}
