@@ -70,7 +70,7 @@ def data_periode(start: date, end: date) -> pd.DataFrame:
     if df.empty:
         return df
     df = df[df["status_pesanan"] != "Batal"].copy()
-    df["tgl"] = pd.to_datetime(df["tanggal"], errors="coerce").dt.date
+    df["tgl"] = pd.to_datetime(df["tanggal"], format="%Y-%m-%d", errors="coerce").dt.date
     df["subtotal"] = pd.to_numeric(df["subtotal"], errors="coerce").fillna(0)
     return df[(df["tgl"] >= start) & (df["tgl"] <= end)]
 
@@ -118,8 +118,11 @@ def tabel_html(df: pd.DataFrame, nama_semua: list[str], hari: list[date], me: st
             pending = (n, d) in rev
             cls = ("me " if mine else "") + ("ada" if v else "kosong") + (" hari-ini" if d == hari_ini else "") \
                 + (" klik" if klik else "") + (" rev" if pending else "") + (" libur" if d in libur and not v else "")
-            if v:
-                isi = ("⏳" if pending else "") + f"{int(v):,}".replace(",", ".") + ('<span class="ok-hari">✓</span>' if (n, d) in lunas_hari else "")
+            if v and (n, d) in lunas_hari and not pending:
+                isi = "LUNAS"
+                cls += " lunas-sel"
+            elif v:
+                isi = ("⏳" if pending else "") + f"{int(v):,}".replace(",", ".")
             elif klik:
                 isi = '<span class="pill-pesan">PESAN</span>'
             elif d in libur:
@@ -128,10 +131,11 @@ def tabel_html(df: pd.DataFrame, nama_semua: list[str], hari: list[date], me: st
                 isi = "·"
             attr = f' data-c="d|{d.isoformat()}|{html.escape(n, quote=True)}"' if klik else ""
             h.append(f'<td class="{cls}"{attr}>{isi}</td>')
-        chip = ' <span class="chip-lunas">✓</span>' if total and lunas.get(n) else ""
+        semua_lunas = bool(total and lunas.get(n))
         tklik = (mine or admin) and total
         attr = f' data-c="t|{kode}|{html.escape(n, quote=True)}"' if tklik else ""
-        h.append(f'<td class="tot{" klik" if tklik else ""}"{attr}>{logic.rupiah(total) if total else "-"}{chip}</td></tr>')
+        isi_tot = (f'<b>LUNAS</b><small>{logic.rupiah(total)}</small>' if semua_lunas else (logic.rupiah(total) if total else "-"))
+        h.append(f'<td class="tot{" klik" if tklik else ""}{" lunas-tot" if semua_lunas else ""}"{attr}>{isi_tot}</td></tr>')
     h.append("</tbody></table></div>")
     return "".join(h)
 
@@ -163,7 +167,7 @@ def turunan(cari_: str = "") -> SimpleNamespace:
     if me and not admin and not df_.empty and "dipesan_oleh" in df_:
         punya = {(r.pelanggan, r.tgl) for r in df_[(df_["dipesan_oleh"] == me) & (df_["pelanggan"] != me)].itertuples()}
     rv = store.all("Revisi")
-    rev_ = {(r.pelanggan, pd.to_datetime(r.tanggal).date()) for r in rv[rv["status"] == "Menunggu"].itertuples()} if not rv.empty else set()
+    rev_ = {(r.pelanggan, orders._tgl(r.tanggal)) for r in rv[rv["status"] == "Menunggu"].itertuples()} if not rv.empty else set()
     akun = store.all("Pelanggan")
     nama = sorted(akun[(akun["aktif"] != "0") & (akun["role"] != "admin")]["nama"].tolist(), key=str.lower)
     semua = list(nama)
@@ -220,15 +224,27 @@ if klik:
             elif not admin and tg == _buka:
                 st.session_state["_open"] = ("pesan", a1, a2, False)
 
+_MEMO_TBL: dict = {}
+
+
 @st.fragment(run_every=JEDA)
 def tabel_live():
-    d = turunan(cari)
-    st.markdown(tabel_html(d.df, d.nama, hari, me, admin, d.sel_kosong, d.libur, d.rev, kode, d.punyaku), unsafe_allow_html=True)
-    st.caption("Ketuk **PESAN** untuk memesan · ketuk angka untuk rincian dan pembayaran hari itu · ketuk TOTAL untuk tagihan satu periode · ⏳ menunggu admin · ✓ lunas")
-    lib = {t: k for t, k in d.libur.items() if t >= hari_ini}
-    if lib:
-        st.markdown('<div class="kartu libur-info"><b>Libur pemesanan:</b> ' + ", ".join(
-            f"{ui.label_tgl(t)}" + (f" ({html.escape(k)})" if k else "") for t, k in sorted(lib.items())) + "</div>", unsafe_allow_html=True)
+    menit = logic.now_wib().strftime("%Y-%m-%d %H:%M")   # batas jam pesan ikut mempengaruhi tampilan
+    kunci = (id(store), store.stamp("Kasbon", "Revisi", "Libur", "MenuHarian", "Pelanggan"), me, admin, start, cari, menit)
+    isi = _MEMO_TBL.get(kunci)
+    if isi is None:
+        d = turunan(cari)
+        isi = tabel_html(d.df, d.nama, hari, me, admin, d.sel_kosong, d.libur, d.rev, kode, d.punyaku)
+        isi += ('<div class="cap">Ketuk <b>PESAN</b> untuk memesan · ketuk angka untuk rincian dan pembayaran hari itu · '
+                'ketuk TOTAL untuk tagihan satu periode · ⏳ menunggu admin · hijau = lunas</div>')
+        lib = {t: k for t, k in d.libur.items() if t >= hari_ini}
+        if lib:
+            isi += '<div class="kartu libur-info"><b>Libur pemesanan:</b> ' + ", ".join(
+                f"{ui.label_tgl(t)}" + (f" ({html.escape(k)})" if k else "") for t, k in sorted(lib.items())) + "</div>"
+        if len(_MEMO_TBL) > 60:
+            _MEMO_TBL.clear()
+        _MEMO_TBL[kunci] = isi
+    st.html(isi)
 
 
 tabel_live()

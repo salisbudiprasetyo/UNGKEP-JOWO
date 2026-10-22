@@ -19,6 +19,14 @@ KELOMPOK = {
 LAUK = {"Ayam Sayur", "Lauk"}  # kategori yang dihitung sebagai lauk utama
 
 
+def _tgl(t: str) -> date:
+    """Tanggal dari teks ISO (cepat); cadangan: pandas untuk format lain."""
+    try:
+        return date.fromisoformat(str(t)[:10])
+    except ValueError:
+        return pd.to_datetime(t).date()
+
+
 def _num(x, d=0.0) -> float:
     try:
         return float(x)
@@ -43,7 +51,7 @@ def menu_hari(store, tgl: date) -> pd.DataFrame:
 def libur_map(store) -> dict[date, str]:
     """Tanggal libur pemesanan -> keterangan."""
     df = store.all("Libur")
-    return {pd.to_datetime(r.tanggal).date(): r.keterangan for r in df.itertuples() if r.tanggal}
+    return {_tgl(r.tanggal): r.keterangan for r in df.itertuples() if r.tanggal}
 
 
 def is_libur(store, tgl: date) -> bool:
@@ -62,7 +70,7 @@ def hapus_libur(store, tgl: date) -> None:
 def tanggal_menu(store) -> list[date]:
     """Tanggal yang menunya sudah diunggah dan tidak libur."""
     libur = libur_map(store)
-    ds = {pd.to_datetime(t).date() for t in store.all("MenuHarian")["tanggal"] if t}
+    ds = {_tgl(t) for t in set(store.all("MenuHarian")["tanggal"]) if t}
     return sorted(d for d in ds if d not in libur)
 
 
@@ -135,13 +143,23 @@ def catatan_pesanan(store, tgl: date, nama: str) -> str:
     return str(df.iloc[0]["catatan"]) if not df.empty else ""
 
 
+def _rev_dict(r) -> dict:
+    return {"jenis": r["jenis"], "items": json.loads(r["items"] or "[]"), "catatan": r["catatan"], "waktu": r["waktu"]}
+
+
 def revisi_menunggu(store, tgl: date, nama: str) -> dict | None:
     df = store.all("Revisi")
     df = df[(df["tanggal"] == tgl.isoformat()) & (df["pelanggan"] == nama) & (df["status"] == "Menunggu")]
     if df.empty:
         return None
-    r = df.iloc[-1]
-    return {"jenis": r["jenis"], "items": json.loads(r["items"] or "[]"), "catatan": r["catatan"], "waktu": r["waktu"]}
+    return _rev_dict(df.iloc[-1])
+
+
+def revisi_hari(store, tgl: date) -> dict[str, dict]:
+    """Semua revisi yang menunggu pada satu tanggal, sekali baca: {pelanggan: revisi}."""
+    df = store.all("Revisi")
+    df = df[(df["tanggal"] == tgl.isoformat()) & (df["status"] == "Menunggu")]
+    return {r["pelanggan"]: _rev_dict(r) for _, r in df.iterrows()}
 
 
 # ------------------------------------------------------------------ tulis pesanan
@@ -202,7 +220,11 @@ def simpan_pesanan(store, tgl: date, nama: str, pilihan: dict[str, int], catatan
     if ada and not langsung and oleh != nama and pemesan(store, tgl, nama) != oleh:
         return f"{nama} sudah memesan sendiri. Minta dia mengubahnya lewat akunnya.", ""
     if not ada:
-        store.replace_where("Kasbon", "order_id", oid, _baris(tgl, nama, items, catatan, "Dipesan", wkt, oleh))
+        baris = _baris(tgl, nama, items, catatan, "Dipesan", wkt, oleh)
+        if (store.all("Kasbon")["order_id"] == oid).any():   # sisa pesanan batal pada id yang sama: ganti
+            store.replace_where("Kasbon", "order_id", oid, baris)
+        else:                                                # normal: cukup menambah baris (cepat)
+            store.append("Kasbon", baris)
         kind = "baru"
     elif langsung:
         lama = pesanan_tgl(store, tgl)
@@ -295,14 +317,21 @@ def kelompok_dari(items: list[dict]) -> int:
     return 3
 
 
+_MEMO_DP: dict = {}   # hasil daftar_pesanan per (store, tanggal, penanda perubahan data)
+
+
 def daftar_pesanan(store, tgl: date) -> list[dict]:
     """Semua pesanan aktif pada tanggal tsb (memakai versi LAMA sampai admin konfirmasi)."""
+    kunci = (id(store), tgl, store.stamp("Kasbon", "Revisi"))
+    if kunci in _MEMO_DP:
+        return _MEMO_DP[kunci]
     df = pesanan_tgl(store, tgl)
+    revs = revisi_hari(store, tgl)
     hasil = []
     for nama, g in df.groupby("pelanggan", sort=False):
         items = [{"kategori": r.kategori, "item": r.item, "qty": int(r.qty), "harga": float(r.harga), "hpp": float(r.hpp)}
                  for r in g.itertuples()]
-        rev = revisi_menunggu(store, tgl, nama)
+        rev = revs.get(nama)
         stat = set(g["status_pesanan"])
         if rev:
             status = "Minta batal" if rev["jenis"] == "batal" else "Revisi"
@@ -321,6 +350,9 @@ def daftar_pesanan(store, tgl: date) -> list[dict]:
             "oleh": (str(g.iloc[0]["dipesan_oleh"]) if str(g.iloc[0]["dipesan_oleh"]) not in ("", nama) else ""),
         })
     hasil.sort(key=lambda o: (o["dibuat"], o["nama"].lower()))
+    if len(_MEMO_DP) > 40:
+        _MEMO_DP.clear()
+    _MEMO_DP[kunci] = hasil
     return hasil
 
 

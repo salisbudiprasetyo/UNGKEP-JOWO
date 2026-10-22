@@ -138,3 +138,10 @@ table.rekap th.libur{background:#E7E5E4;color:#78716C;}
 table.rekap td.libur{background:#F5F5F4;color:#A8A29E;font-size:.66rem;font-style:italic;}
 .libur-info{background:#FEF2F2;border-color:#FECACA;color:#991B1B;font-size:.86rem;}
 .psn .oleh{margin-top:.15rem;color:var(--muted);font-size:.78rem;}
+
+/* ===== lunas: sel hari & kolom total hijau ===== */
+table.rekap td.lunas-sel{background:#DCFCE7!important;color:#166534;font-weight:800;font-size:.66rem;letter-spacing:.04em;}
+table.rekap td.tot.lunas-tot{background:#BBF7D0!important;color:#14532D;line-height:1.1;}
+table.rekap td.tot.lunas-tot b{display:block;font-size:.72rem;letter-spacing:.05em;}
+table.rekap td.tot.lunas-tot small{display:block;font-weight:600;font-size:.66rem;opacity:.8;}
+.cap{color:var(--muted);font-size:.8rem;margin:.35rem 0 .2rem;}

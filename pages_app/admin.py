@@ -208,6 +208,52 @@ with tab_awal:
     if (pesan_ok := st.session_state.pop("_awal_ok", None)):
         st.success(pesan_ok)
 
+    st.divider()
+    st.markdown("**Unggah rekap pesanan (Excel)**")
+    st.caption("Format sama seperti REKAP_PEMBELIAN: sel A1 \"TANGGAL\", baris 2 berisi tanggal, lalu kolom NAMA dan PESANAN. "
+               "Tanggal yang sudah ada di aplikasi **ditimpa seluruhnya** (tidak ditambah), jadi data tidak dobel.")
+    import rekap_excel
+    from datetime import date as _d
+    _hari = logic.now_wib().date()
+    c1, c2 = st.columns(2)
+    _bln = c1.selectbox("Bulan", list(range(1, 13)), index=_hari.month - 1, key="xl_bln")
+    _thn = c2.number_input("Tahun", 2024, 2100, _hari.year, key="xl_thn")
+    _fx = st.file_uploader("Berkas Excel (.xlsx)", type=["xlsx"], key="xl_file")
+    if _fx is not None:
+        try:
+            _data, _info = rekap_excel.baca(_fx.getvalue(), int(_bln), int(_thn))
+        except Exception as e:
+            st.error(f"Berkas tidak bisa dibaca: {e}")
+            _data = None
+        if _data:
+            _rc0 = rekap_excel.rencana(store, _data)
+            _akun = [n for n in store.all("Pelanggan")["nama"]]
+            _menu = sorted(rekap_excel.katalog(store, max(_data)))
+            peta_i, peta_n = {}, {}
+            if _rc0["tak_dikenal"]:
+                st.warning("Item berikut tidak dikenali. Pilih padanannya atau biarkan untuk dilewati.")
+                for k, n in _rc0["tak_dikenal"].items():
+                    v = st.selectbox(f"{k} ({n}x)", ["(lewati)"] + _menu, key=f"xl_i_{k}")
+                    peta_i[k] = None if v == "(lewati)" else v
+            if _rc0["nama_baru"]:
+                st.info("Nama berikut belum punya akun. Pilih akun yang sudah ada, atau biarkan untuk dibuatkan akun baru.")
+                for k, n in _rc0["nama_baru"].items():
+                    v = st.selectbox(f"{k} ({n} baris)", ["(buat akun baru)"] + _akun, key=f"xl_n_{k}")
+                    peta_n[k] = None if v == "(buat akun baru)" else v
+            _rc = rekap_excel.rencana(store, _data, peta_i, peta_n)
+            _rows = rekap_excel.ringkas(store, _rc)
+            st.dataframe(pd.DataFrame([{"Tanggal": r["tanggal"].strftime("%d %b %Y"), "Pelanggan": r["pelanggan"],
+                                        "Total": logic.rupiah(r["total"]),
+                                        "Keterangan": (f"Sudah ada {r['ada_sekarang']} pesanan → akan ditimpa" if r["ada_sekarang"] else "Baru")}
+                                       for r in _rows]), hide_index=True, width="stretch")
+            _ok = st.checkbox("Saya mengerti, pesanan pada tanggal di atas akan diganti", key="xl_ok")
+            if st.button("Impor & timpa", type="primary", disabled=not _ok, width="stretch", key="xl_go"):
+                h = rekap_excel.impor(store, _rc, True, services.sandi_awal())
+                st.session_state["_xl_ok"] = (f"Selesai: {h['pesanan']} pesanan pada {', '.join(h['tanggal'])}; {h['akun_baru']} akun baru.")
+                st.rerun()
+    if (_m := st.session_state.pop("_xl_ok", None)):
+        st.success(_m)
+
 # ---------------------------------------------------------------- sandi
 with tab_sandi:
     minta = store.all("Permintaan")

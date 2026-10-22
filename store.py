@@ -53,6 +53,14 @@ class LocalStore:
     def _path(self, sheet: str) -> Path:
         return self.dir / f"{sheet}.csv"
 
+    def stamp(self, *sheets: str) -> tuple:
+        """Penanda perubahan data: berubah bila salah satu sheet berubah (dipakai untuk memoisasi tampilan)."""
+        out = []
+        for sh in sheets:
+            p = self._path(sh)
+            out.append(p.stat().st_mtime_ns if p.exists() else 0)
+        return tuple(out)
+
     def all(self, sheet: str) -> pd.DataFrame:
         p = self._path(sheet)
         if not p.exists():
@@ -93,23 +101,32 @@ class LocalStore:
         return int(mask.sum())
 
 
+def _a1(baris: int, kolom: int) -> str:
+    huruf = ""
+    while kolom:
+        kolom, sisa = divmod(kolom - 1, 26)
+        huruf = chr(65 + sisa) + huruf
+    return f"{huruf}{baris}"
+
+
 class SheetsStore:
     """Google Sheets lewat gspread, dibuat cepat:
     - semua sesi memakai satu cache di memori server; membaca dari cache tidak memanggil Google;
     - setiap tulisan langsung memperbarui cache (write-through), jadi perubahan satu orang terlihat oleh semua tanpa menunggu;
     - cache yang lewat TTL disegarkan diam-diam di latar belakang (tampilan tidak menunggu), supaya suntingan manual di Sheet ikut terbaca;
-    - satu tulisan = satu panggilan API."""
+    - satu tulisan = satu panggilan API; mengubah status tidak menulis ulang seluruh sheet, hanya sel yang berubah."""
 
     TTL = 60     # detik: lewat ini cache disegarkan di latar belakang
-    FRESH = 60   # detik: dasar penulisan memakai cache bila lebih muda dari ini, kalau tidak baca ulang dulu
+    FRESH = 30   # detik: dasar penulisan memakai cache bila lebih muda dari ini, kalau tidak baca ulang dulu
 
     def __init__(self, spreadsheet_id: str, creds: dict):
         import gspread
 
         self.gc = gspread.service_account_from_dict(creds)
         self.sh = self.gc.open_by_key(spreadsheet_id)
-        self._cache: dict[str, tuple[float, pd.DataFrame]] = {}
+        self._cache: dict[str, tuple[float, pd.DataFrame, list[int]]] = {}   # ts, data, nomor baris di Sheet
         self._ver: dict[str, int] = {}
+        self._gen: dict[str, int] = {}
         self._busy: set[str] = set()
         self._ws: dict[str, object] = {}
         self.lock = threading.RLock()
@@ -135,12 +152,23 @@ class SheetsStore:
         self._ws[sheet] = ws
         return ws
 
+    def stamp(self, *sheets: str) -> tuple:
+        return tuple(self._gen.get(sh, 0) for sh in sheets)
+
+    def _taruh(self, sheet: str, df: pd.DataFrame, rn: list[int], ts: float | None = None) -> None:
+        self._cache[sheet] = (time.time() if ts is None else ts, df, rn)
+        self._gen[sheet] = self._gen.get(sheet, 0) + 1
+
     # ---- baca
-    def _read(self, sheet: str) -> pd.DataFrame:
+    def _read(self, sheet: str) -> tuple[pd.DataFrame, list[int]]:
         values = self._worksheet(sheet).get_all_values()
         cols = SCHEMA[sheet]
-        rows = [r + [""] * (len(cols) - len(r)) for r in values[1:] if any(c != "" for c in r)]
-        return pd.DataFrame([r[: len(cols)] for r in rows], columns=cols, dtype=str)
+        rows, rn = [], []
+        for i, r in enumerate(values[1:], start=2):
+            if any(c != "" for c in r):
+                rows.append((r + [""] * (len(cols) - len(r)))[: len(cols)])
+                rn.append(i)
+        return pd.DataFrame(rows, columns=cols, dtype=str), rn
 
     def _segarkan_latar(self, sheet: str) -> None:
         if sheet in self._busy:
@@ -150,14 +178,18 @@ class SheetsStore:
 
         def kerja():
             try:
-                df = self._read(sheet)
+                df, rn = self._read(sheet)
                 with self.lock:
                     if self._ver.get(sheet, 0) == v0:   # bila ada tulisan selama membaca, cache sudah lebih baru
-                        self._cache[sheet] = (time.time(), df)
+                        lama = self._cache.get(sheet)
+                        if lama is None or not lama[1].equals(df):
+                            self._taruh(sheet, df, rn)
+                        else:
+                            self._cache[sheet] = (time.time(), lama[1], rn)
             except Exception:
                 hit = self._cache.get(sheet)           # gagal: coba lagi sebentar lagi
                 if hit:
-                    self._cache[sheet] = (time.time() - self.TTL + 10, hit[1])
+                    self._cache[sheet] = (time.time() - self.TTL + 10, hit[1], hit[2])
             finally:
                 self._busy.discard(sheet)
 
@@ -169,18 +201,20 @@ class SheetsStore:
             with self.lock:
                 hit = self._cache.get(sheet)
                 if hit is None:
-                    hit = (time.time(), self._read(sheet))
-                    self._cache[sheet] = hit
+                    df, rn = self._read(sheet)
+                    self._taruh(sheet, df, rn)
+                    hit = self._cache[sheet]
         elif time.time() - hit[0] > self.TTL:
             self._segarkan_latar(sheet)
         return hit[1].copy()
 
     # ---- tulis (selalu di dalam lock)
-    def _dasar(self, sheet: str) -> pd.DataFrame:
+    def _dasar(self, sheet: str) -> tuple[pd.DataFrame, list[int]]:
         hit = self._cache.get(sheet)
         if hit and time.time() - hit[0] < self.FRESH:
-            return hit[1].copy()
-        return self._read(sheet)
+            return hit[1].copy(), list(hit[2])
+        df, rn = self._read(sheet)
+        return df, rn
 
     def _simpan(self, sheet: str, df: pd.DataFrame, baris_lama: int) -> None:
         cols = SCHEMA[sheet]
@@ -189,7 +223,7 @@ class SheetsStore:
         data += [[""] * len(cols)] * max(0, baris_lama - len(data))   # kosongkan sisa baris lama dalam satu panggilan
         self._worksheet(sheet).update(data, "A1", value_input_option="RAW")
         self._ver[sheet] = self._ver.get(sheet, 0) + 1
-        self._cache[sheet] = (time.time(), df)
+        self._taruh(sheet, df, list(range(2, len(df) + 2)))
 
     @_locked
     def append(self, sheet: str, rows: list[dict]) -> None:
@@ -201,12 +235,15 @@ class SheetsStore:
         hit = self._cache.get(sheet)
         if hit:
             tambah = pd.DataFrame([{c: str(r.get(c, "")) for c in cols} for r in rows], columns=cols)
-            self._cache[sheet] = (hit[0], pd.concat([hit[1], tambah], ignore_index=True))
+            awal = (hit[2][-1] if hit[2] else 1) + 1
+            self._taruh(sheet, pd.concat([hit[1], tambah], ignore_index=True), hit[2] + list(range(awal, awal + len(rows))), hit[0])
+        else:
+            self._gen[sheet] = self._gen.get(sheet, 0) + 1
 
     @_locked
     def replace_where(self, sheet: str, col: str, value: str, rows: list[dict]) -> None:
-        df = self._dasar(sheet)
-        n = len(df) + 1
+        df, rn = self._dasar(sheet)
+        n = (rn[-1] if rn else 1)
         df = df[df[col] != str(value)]
         if rows:
             df = pd.concat([df, pd.DataFrame(rows).astype(str)], ignore_index=True)
@@ -214,19 +251,30 @@ class SheetsStore:
 
     @_locked
     def replace_all(self, sheet: str, rows: list[dict]) -> None:
-        n = len(self._dasar(sheet)) + 1
-        self._simpan(sheet, pd.DataFrame(rows, columns=SCHEMA[sheet]).astype(str), n)
+        df, rn = self._dasar(sheet)
+        self._simpan(sheet, pd.DataFrame(rows, columns=SCHEMA[sheet]).astype(str), (rn[-1] if rn else 1))
 
     @_locked
     def update_where(self, sheet: str, match: dict, updates: dict) -> int:
-        df = self._dasar(sheet)
+        df, rn = self._dasar(sheet)
         mask = pd.Series(True, index=df.index)
         for k, v in match.items():
             mask &= df[k] == str(v)
-        if mask.any():
+        cols = SCHEMA[sheet]
+        sel = []
+        for pos in [i for i, m in enumerate(mask.tolist()) if m]:
             for k, v in updates.items():
-                df.loc[mask, k] = str(v)
-            self._simpan(sheet, df, len(df) + 1)
+                if str(df.iat[pos, cols.index(k)]) != str(v):
+                    sel.append({"range": _a1(rn[pos], cols.index(k) + 1), "values": [[str(v)]]})
+                    df.iat[pos, cols.index(k)] = str(v)
+        if sel:   # hanya sel yang berubah, dalam satu panggilan
+            ws = self._worksheet(sheet)
+            try:
+                ws.batch_update(sel, value_input_option="RAW")
+            except TypeError:
+                ws.batch_update(sel)
+            self._ver[sheet] = self._ver.get(sheet, 0) + 1
+            self._taruh(sheet, df.reset_index(drop=True), rn)
         return int(mask.sum())
 
 

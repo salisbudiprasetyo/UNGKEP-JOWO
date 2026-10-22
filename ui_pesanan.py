@@ -465,33 +465,54 @@ def _rekap_akhir_html(semua: list[dict], admin: bool) -> str:
     return f'<div class="rk-akhir"><h4>REKAP TOTAL HARI INI</h4><table>{"".join(rows)}</table></div>'
 
 
-def render_hari_ini(store, tgl: date, me: str | None, admin: bool):
+_MEMO_HI: dict = {}
+
+
+def _html_hari_ini(store, tgl: date, me: str | None, admin: bool) -> dict:
+    """Bagian-bagian HTML 'Pesanan Hari Ini' (satu string per bagian) agar cukup beberapa elemen saja di layar."""
     semua = orders.daftar_pesanan(store, tgl)
     tahun = f"{tgl.day} {logic.BULAN[tgl.month]} {tgl.year}"
-    st.markdown(f'<div class="judul-sec"><h3>PESANAN HARI INI</h3><span class="tg">{HARI[tgl.weekday()]}, {tahun}</span></div>',
-                unsafe_allow_html=True)
+    kepala = (f'<div class="judul-sec"><h3>PESANAN HARI INI</h3><span class="tg">{HARI[tgl.weekday()]}, {tahun}</span></div>')
     if not semua:
-        st.markdown('<div class="kartu"><small>Belum ada yang memesan untuk menu ini.</small></div>', unsafe_allow_html=True)
-        return
+        return {"kepala": kepala, "kosong": '<div class="kartu"><small>Belum ada yang memesan untuk menu ini.</small></div>'}
+    grup = {}
     for k in (1, 2, 3):
-        grup = [o for o in semua if o["kelompok"] == k]
-        st.markdown(f'<div class="grp-h">{k}. {KELOMPOK[k]}<span>{len(grup)} orang</span></div>', unsafe_allow_html=True)
-        if not grup:
-            st.markdown('<div class="kosong-info">Belum ada pesanan.</div>', unsafe_allow_html=True)
-            continue
-        for no, o in enumerate(grup, 1):
-            if admin:
-                with st.container():
-                    st.markdown(_kartu_html(o, no, me), unsafe_allow_html=True)
-                    _aksi_admin(store, tgl, o, f"{k}_{no}")
-            else:
-                st.markdown(_kartu_html(o, no, me), unsafe_allow_html=True)
-                if me and o["nama"] == me and logic.bisa_edit(tgl):
-                    if st.button("Ubah / batalkan pesanan saya", key=f"ubahku_{k}_{no}", width="stretch"):
-                        st.session_state["_open"] = ("pesan", tgl.isoformat(), me, False)
-                        st.rerun()
-        st.markdown(_rekap_html(grup), unsafe_allow_html=True)
-    st.markdown(_rekap_akhir_html(semua, admin), unsafe_allow_html=True)
+        g = [o for o in semua if o["kelompok"] == k]
+        grup[k] = {"orders": g,
+                   "kepala": f'<div class="grp-h">{k}. {KELOMPOK[k]}<span>{len(g)} orang</span></div>',
+                   "rekap": _rekap_html(g),
+                   "html": "".join(_kartu_html(o, no, me) for no, o in enumerate(g, 1)) if g else '<div class="kosong-info">Belum ada pesanan.</div>'}
+    return {"kepala": kepala, "grup": grup, "akhir": _rekap_akhir_html(semua, admin), "semua": semua}
+
+
+def render_hari_ini(store, tgl: date, me: str | None, admin: bool):
+    kunci = (id(store), tgl, store.stamp("Kasbon", "Revisi", "MenuHarian"), me, admin)
+    bag = _MEMO_HI.get(kunci)
+    if bag is None:
+        bag = _html_hari_ini(store, tgl, me, admin)
+        if len(_MEMO_HI) > 40:
+            _MEMO_HI.clear()
+        _MEMO_HI[kunci] = bag
+    st.html(bag["kepala"])
+    if "kosong" in bag:
+        st.html(bag["kosong"])
+        return
+    punya_saya = bool(me and not admin and any(o["nama"] == me for o in bag["semua"]))
+    if punya_saya and logic.bisa_edit(tgl):
+        if st.button("Ubah / batalkan pesanan saya", key="ubahku", width="stretch"):
+            st.session_state["_open"] = ("pesan", tgl.isoformat(), me, False)
+            st.rerun()
+    for k in (1, 2, 3):
+        g = bag["grup"][k]
+        if admin and g["orders"]:
+            st.html(g["kepala"])
+            for no, o in enumerate(g["orders"], 1):
+                st.html(_kartu_html(o, no, me))
+                _aksi_admin(store, tgl, o, f"{k}_{no}")
+            st.html(g["rekap"])
+        else:
+            st.html(g["kepala"] + g["html"] + g["rekap"])
+    st.html(bag["akhir"])
 
 
 def _aksi_admin(store, tgl: date, o: dict, kunci: str):

@@ -3,3 +3,4 @@ pandas
 gspread>=6.0
 google-auth
 pillow
+openpyxl

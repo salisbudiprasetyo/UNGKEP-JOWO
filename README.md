@@ -47,3 +47,9 @@ Admin > tab **Data awal** > centang > **Muat data awal**. Mengisi 36 pelanggan, 
 - Semua sesi memakai satu cache di memori server. Membaca tidak memanggil Google; menulis memperbarui cache seketika (satu panggilan API per tulisan). Cache disegarkan diam-diam di latar belakang tiap ±60 detik agar suntingan manual di Google Sheet ikut terbaca.
 - Tabel kasbon, kartu total, dan “Pesanan Hari Ini” menyegarkan diri otomatis: tiap 2 detik di akun admin, tiap 8 detik di akun pelanggan. Pesanan baru langsung muncul tanpa muat ulang.
 - Cadangan RecordHarian ditulis di latar belakang supaya tombol “Pesan sekarang” tidak menunggu.
+
+## Unggah rekap Excel (tab Data awal)
+Unggah `.xlsx` berformat REKAP_PEMBELIAN (A1 "TANGGAL", baris 2 tanggal, kolom NAMA/PESANAN). Pilih bulan & tahun, cocokkan item/nama yang tak dikenali, lalu "Impor & timpa". Tanggal yang sudah ada **ditimpa**, bukan ditambah. Perlu `openpyxl`.
+
+## Tampilan lunas
+Sel tanggal yang sudah lunas berwarna hijau muda bertuliskan LUNAS (tetap bisa diklik). Kolom total hijau hanya bila semua tagihan periode lunas.
