@@ -10,7 +10,8 @@ from zoneinfo import ZoneInfo
 
 WIB = ZoneInfo("Asia/Jakarta")
 CUTOFF_HARI = 10          # kasbon dibayar tanggal 10
-EDIT_BATAS_JAM = (10, 15)  # pelanggan bisa ubah pesanan sampai 10:15 WIB hari H
+EDIT_BATAS_JAM = (10, 45)  # pelanggan bisa pesan/ubah/batal sampai jam ini (WIB) pada hari H
+BATAS_TEKS = f"{EDIT_BATAS_JAM[0]:02d}:{EDIT_BATAS_JAM[1]:02d}"
 
 BULAN = ["", "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli",
          "Agustus", "September", "Oktober", "November", "Desember"]
@@ -74,7 +75,7 @@ def rupiah(n: float | int) -> str:
 
 
 def bisa_edit(tgl: date, sekarang: datetime | None = None) -> bool:
-    """Pelanggan boleh mengubah pesanan untuk tanggal `tgl` sampai 10:15 WIB pada hari itu."""
+    """Pelanggan boleh mengubah pesanan untuk tanggal `tgl` sampai batas jam (BATAS_TEKS) WIB pada hari itu."""
     sekarang = sekarang or now_wib()
     batas = datetime(tgl.year, tgl.month, tgl.day, *EDIT_BATAS_JAM, tzinfo=WIB)
     return sekarang <= batas

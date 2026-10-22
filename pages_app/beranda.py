@@ -73,7 +73,9 @@ def data_periode(start: date, end: date) -> pd.DataFrame:
     return df[(df["tgl"] >= start) & (df["tgl"] <= end)]
 
 
-def tabel_html(df: pd.DataFrame, nama_semua: list[str], hari: list[date], me: str | None, bisa_pesan: set[date]) -> str:
+def tabel_html(df: pd.DataFrame, nama_semua: list[str], hari: list[date], me: str | None, admin: bool,
+               bisa_pesan: set[date], ada_menu: set[date], rev: set[tuple[str, date]], kode: str) -> str:
+    """Tabel kasbon. Sel yang boleh diklik diberi data-c (dibaca skrip kecil di bawah)."""
     hari_ini = logic.today_wib()
     pivot = df.groupby(["pelanggan", "tgl"])["subtotal"].sum().to_dict() if not df.empty else {}
     lunas = {}
@@ -103,16 +105,23 @@ def tabel_html(df: pd.DataFrame, nama_semua: list[str], hari: list[date], me: st
         for d in hari:
             v = pivot.get((n, d), 0)
             total += v
-            cls = ("me " if mine else "") + ("ada" if v else "kosong") + (" hari-ini" if d == hari_ini else "")
+            boleh = mine or admin
+            klik = boleh and bool(v or (d in ada_menu if admin else d in bisa_pesan))
+            pending = (n, d) in rev
+            cls = ("me " if mine else "") + ("ada" if v else "kosong") + (" hari-ini" if d == hari_ini else "") \
+                + (" klik" if klik else "") + (" rev" if pending else "")
             if v:
-                isi = f"{int(v):,}".replace(",", ".")
-            elif mine and d in bisa_pesan:
+                isi = ("⏳" if pending else "") + f"{int(v):,}".replace(",", ".")
+            elif klik:
                 isi = '<span class="pill-pesan">PESAN</span>'
             else:
                 isi = "·"
-            h.append(f'<td class="{cls}">{isi}</td>')
+            attr = f' data-c="d|{d.isoformat()}|{html.escape(n, quote=True)}"' if klik else ""
+            h.append(f'<td class="{cls}"{attr}>{isi}</td>')
         chip = ' <span class="chip-lunas">✓</span>' if total and lunas.get(n) else ""
-        h.append(f'<td class="tot">{logic.rupiah(total) if total else "-"}{chip}</td></tr>')
+        tklik = (mine or admin) and total
+        attr = f' data-c="t|{kode}|{html.escape(n, quote=True)}"' if tklik else ""
+        h.append(f'<td class="tot{" klik" if tklik else ""}"{attr}>{logic.rupiah(total) if total else "-"}{chip}</td></tr>')
     h.append("</tbody></table></div>")
     return "".join(h)
 
@@ -139,43 +148,87 @@ if me and not admin:
         f'<div class="kartu"><small>Halo, <b>{html.escape(me)}</b> · kasbon periode ini</small>'
         f'<div class="besar">{logic.rupiah(total_saya)}</div>'
         f'<small>Dibayar tanggal {logic.CUTOFF_HARI} {logic.BULAN[end.month]} {end.year}</small></div>', unsafe_allow_html=True)
+    if total_saya > 0 and st.button("Lihat tagihan / Bayar sekarang", key="btn_tagihan", width="stretch"):
+        st.session_state["_open"] = ("tagihan", logic.kode_periode(start), me)
 
-# tanggal yang masih bisa dipesan: menu sudah ada dan belum lewat 10:15
-tgl_buka = [d for d in orders.tanggal_menu(store) if d >= hari_ini and logic.bisa_edit(d)][:3]
+# tanggal yang masih bisa dipesan: menu sudah ada dan belum lewat batas jam
+ada_menu = set(orders.tanggal_menu(store))
+tgl_buka = [d for d in sorted(ada_menu) if d >= hari_ini and logic.bisa_edit(d)][:3]
+kode = logic.kode_periode(start)
+_rv = store.all("Revisi")
+rev_set = {(r.pelanggan, pd.to_datetime(r.tanggal).date()) for r in _rv[_rv["status"] == "Menunggu"].itertuples()} if not _rv.empty else set()
 
 _akun = store.all("Pelanggan")
 nama_semua = sorted(_akun[(_akun["aktif"] != "0") & (_akun["role"] != "admin")]["nama"].tolist(), key=str.lower)
 cari = st.text_input("Cari nama", placeholder="Cari nama di tabel…", label_visibility="collapsed") if len(nama_semua) > 12 else ""
 if cari:
     nama_semua = [n for n in nama_semua if cari.lower() in n.lower() or n == me]
-st.markdown(tabel_html(df, nama_semua, hari, me, set(tgl_buka) if me and not admin else set()), unsafe_allow_html=True)
-st.caption("Angka = belanja per hari (Rp) · geser tabel untuk melihat tanggal lain · ✓ lunas")
-# geser tabel otomatis ke tanggal hari ini (bila skrip diizinkan browser; kalau tidak, tabel tetap bisa digeser manual)
-components.html("""<script>
-(function(){var n=0,t=setInterval(function(){try{var d=window.parent.document,w=d.querySelector('.rekap-wrap'),h=d.querySelector('th.hari-ini');
-if(w&&h){w.scrollLeft=Math.max(0,h.offsetLeft-215);clearInterval(t);}}catch(e){clearInterval(t);} if(++n>20)clearInterval(t);},150);})();
-</script>""", height=0)
 
-# ---- tombol pesan (pelanggan)
-if me and not admin:
-    if not tgl_buka:
-        st.markdown('<div class="kartu"><small>Menu berikutnya belum diunggah admin. Pemesanan terbuka setelah menu tersedia.</small></div>',
-                    unsafe_allow_html=True)
-    for d in tgl_buka:
-        mine = orders.items_pesanan(store, d, me)
-        rev = orders.revisi_menunggu(store, d, me)
-        if mine:
-            tot = sum(i["qty"] * i["harga"] for i in mine)
-            ket = f"Sudah dipesan · {logic.rupiah(tot)}" + (" · perubahan menunggu admin" if rev else "")
-            st.markdown(f'<div class="aksi-card sudah"><div><div class="tgl">{ui.label_tgl(d)}</div><div class="ket">{ket}</div></div></div>',
-                        unsafe_allow_html=True)
-            if st.button("Lihat / ubah pesanan", key=f"pesan_{d}", width="stretch"):
-                ui.dialog_pesan(d.isoformat(), me)
+# kotak tersembunyi: skrip kecil mengisinya saat sel tabel diketuk (kuncinya berganti tiap dipakai)
+n_klik = st.session_state.setdefault("_n_klik", 0)
+klik = st.text_input("sel", key=f"cellsel_{n_klik}", label_visibility="collapsed")
+if klik:
+    st.session_state["_n_klik"] += 1
+    jenis, a1, a2 = (klik.split("#")[0].split("|", 2) + ["", "", ""])[:3]
+    if me and (a2 == me or admin) and jenis in ("d", "t"):
+        if jenis == "t":
+            st.session_state["_open"] = ("tagihan", a1, a2)
         else:
-            st.markdown(f'<div class="aksi-card"><div><div class="tgl">{ui.label_tgl(d)}</div><div class="ket">Menu sudah tersedia · pesan sebelum 10:15</div></div></div>',
-                        unsafe_allow_html=True)
-            if st.button(f"PESAN {ui.label_tgl(d)}", key=f"pesan_{d}", type="primary", width="stretch"):
+            tg = date.fromisoformat(a1)
+            ada = bool(orders.items_pesanan(store, tg, a2))
+            if admin:
+                st.session_state["_open"] = ("rincian", a1, a2) if ada else ("pesan", a1, a2, True)
+            elif ada and logic.bisa_edit(tg):
+                st.session_state["_open"] = ("pesan", a1, a2, False)
+            elif ada:
+                st.session_state["_open"] = ("rincian", a1, a2)
+            elif orders.bisa_pesan(store, tg):
+                st.session_state["_open"] = ("pesan", a1, a2, False)
+
+st.markdown(tabel_html(df, nama_semua, hari, me, admin, set(tgl_buka), ada_menu, rev_set, kode), unsafe_allow_html=True)
+st.caption("Ketuk **PESAN** untuk memesan · ketuk angka untuk melihat rincian · ketuk TOTAL untuk tagihan · ⏳ menunggu admin · ✓ lunas")
+_js = ("""<script>
+(function(){
+ var P=window.parent,D=P.document;
+ if(!P.__ujKlik){
+  var s=D.createElement('script');
+  s.textContent="(function(){document.addEventListener('click',function(e){var td=e.target.closest&&e.target.closest('[data-c]');if(!td)return;"+
+  "var b=document.querySelector('[class*=st-key-cellsel] input');if(!b)return;"+
+  "var st=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;b.focus({preventScroll:true});"+
+  "st.call(b,td.getAttribute('data-c')+'#'+Date.now());b.dispatchEvent(new Event('input',{bubbles:true}));b.blur();},true);})();";
+  D.head.appendChild(s); P.__ujKlik=true;
+ }
+ var n=0,t=setInterval(function(){try{var w=D.querySelector('.rekap-wrap'),h=D.querySelector('th.hari-ini');
+ if(w&&h){w.scrollLeft=Math.max(0,h.offsetLeft-215);clearInterval(t);}}catch(e){clearInterval(t);} if(++n>20)clearInterval(t);},150);
+})();
+</script>""")
+if hasattr(st, "iframe"):          # components.html dihapus di Streamlit baru
+    st.iframe(_js, height=1)
+else:
+    components.html(_js, height=0)
+
+# buka jendela yang diminta (dari ketukan sel atau dari tombol di dalam jendela lain)
+if (spec := st.session_state.pop("_open", None)) and me:
+    jenis = spec[0]
+    if jenis == "pesan":
+        ui.dialog_pesan(spec[1], spec[2], langsung=bool(spec[3]) and admin)
+    elif jenis == "rincian":
+        ui.dialog_rincian(spec[1], spec[2], admin=admin)
+    elif jenis == "tagihan":
+        ui.dialog_tagihan(spec[1], spec[2], admin=admin)
+    elif jenis == "bayar" and (spec[2] == me and not admin):
+        ui.dialog_bayar(spec[1], spec[2])
+
+# ---- cadangan: tombol biasa bila sel tabel tidak merespons di perangkatmu
+if me and not admin and tgl_buka:
+    with st.expander("Tombol cadangan"):
+        for d in tgl_buka:
+            ada = bool(orders.items_pesanan(store, d, me))
+            if st.button(("Lihat / ubah pesanan " if ada else "PESAN ") + ui.label_tgl(d), key=f"pesan_{d}", width="stretch"):
                 ui.dialog_pesan(d.isoformat(), me)
+if me and not admin and not tgl_buka:
+    st.markdown('<div class="kartu"><small>Menu berikutnya belum diunggah admin. Pemesanan terbuka setelah menu tersedia.</small></div>',
+                unsafe_allow_html=True)
 
 # ---- Pesanan Hari Ini (semua orang bisa melihat; kontrol hanya untuk admin)
 tgl_aktif = orders.tanggal_aktif(store)
@@ -189,25 +242,7 @@ if tgl_aktif:
 else:
     st.markdown('<div class="kartu"><small>Belum ada menu. Admin belum mengunggah menu.</small></div>', unsafe_allow_html=True)
 
-# ---- riwayat & akun
-if me and not admin:
-    st.markdown("### Riwayat saya")
-    mine_df = df[df["pelanggan"] == me] if not df.empty else df
-    per_hari = mine_df.groupby("tgl")["subtotal"].sum().to_dict() if not mine_df.empty else {}
-    if not per_hari:
-        st.info("Belum ada pembelian di periode ini.")
-    else:
-        kandidat = sorted(per_hari)
-        label = {d: f"{d.day} {logic.BULAN[d.month][:3]} · {logic.rupiah(per_hari[d])}" for d in kandidat}
-        pilihan = st.pills("Pilih tanggal", kandidat, format_func=lambda d: label[d], key="pill_tgl", label_visibility="collapsed")
-        if pilihan:
-            rows = mine_df[mine_df["tgl"] == pilihan]
-            st.markdown(f"**{ui.label_tgl(pilihan)}**")
-            tbl = rows[["item", "qty", "harga", "subtotal", "catatan"]].rename(columns={
-                "item": "Item", "qty": "Jml", "harga": "Harga", "subtotal": "Subtotal", "catatan": "Catatan"})
-            st.dataframe(tbl, hide_index=True, width="stretch")
-            st.markdown(f"**Total: {logic.rupiah(per_hari[pilihan])}**")
-
+# ---- akun
 if me:
     with st.expander("Akun saya" if not admin else "Akun admin"):
         with st.form("form_sandi", clear_on_submit=True):

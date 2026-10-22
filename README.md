@@ -21,8 +21,15 @@
 
 ## Aturan penting
 - Periode kasbon: tanggal 11 s/d 10 bulan berikutnya.
-- Pelanggan bisa pesan/ubah/batal sampai 10:15 WIB pada hari H; admin bisa kapan saja.
+- Pelanggan bisa pesan/ubah/batal sampai 10:45 WIB pada hari H; admin bisa kapan saja.
 - Perubahan dari pelanggan baru berlaku setelah admin konfirmasi; sampai itu pesanan lama yang dihitung.
 
 ## Data awal (sekali saja)
 Admin > tab **Data awal** > centang > **Muat data awal**. Mengisi 36 pelanggan, riwayat pesanan 20 dan 21 Okt (Rp561.000), menu master, daftar minuman (centang Ready), dan menu 20-22 Okt (22 Okt: Sate Komo + sayur bening, harga Rp7.000 - cek lagi). Aman diulang; pesanan 20-21 Okt ditimpa sesuai file, menu 22 Okt tidak menimpa menu yang sudah diunggah admin.
+
+
+## Cara kerja tabel & pembayaran (versi terbaru)
+- **Tabel kasbon**: ketuk **PESAN** di kolom tanggal untuk membuka jendela pesan (Nasi, Lauk, Minuman, Lain-lain: pilihan, jumlah, harga, lalu total). Ketuk angka untuk melihat rincian; ketuk **TOTAL** untuk tagihan. Sel kuning ⏳ = perubahan menunggu konfirmasi admin.
+- **Batas ubah pesanan**: 10:45 WIB hari H (ubah di `logic.py`, baris `EDIT_BATAS_JAM`). Setelah itu rincian hanya bisa dilihat.
+- **Bayar sekarang**: menampilkan rekening (bawaan BNI 0258578828 a.n. NUR HABIBAH; ganti lewat secrets `rekening_bank`, `rekening_nomor`, `rekening_nama`), kolom jumlah transfer, dan unggah foto bukti. Jumlah sama dengan tagihan = lunas otomatis; berbeda = tersimpan dan dicek admin di tab **Pembayaran**.
+- **Logo bank**: taruh file `assets/bni.png` (logo resmi) agar tampil di jendela pembayaran. Tanpa file itu tampil lencana teks.

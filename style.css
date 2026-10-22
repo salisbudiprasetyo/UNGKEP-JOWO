@@ -89,3 +89,35 @@ table.mini{width:100%;border-collapse:collapse;font-size:.9rem;} table.mini th{b
 table.mini td{padding:.3rem .5rem;border-bottom:1px solid var(--line);} table.mini td:last-child,table.mini th:last-child{text-align:right;}
 .diff{display:inline-block;border-radius:8px;padding:.1rem .5rem;margin:.1rem .2rem .1rem 0;font-weight:800;font-size:.82rem;}
 .diff.tambah{background:#DCFCE7;color:#166534;} .diff.kurang{background:#FEE2E2;color:#991B1B;}
+
+/* ===== sel tabel bisa diketuk ===== */
+[class*="st-key-cellsel"]{position:absolute!important;left:-9999px;top:0;width:1px;height:1px;overflow:hidden;opacity:0;}
+table.rekap td.klik,table.rekap td.tot.klik{cursor:pointer;}
+table.rekap td.klik.ada:active,table.rekap td.klik:hover{background:#FFE4C7;}
+table.rekap td.ada.klik{text-decoration:underline dotted rgba(124,45,18,.5);text-underline-offset:3px;}
+table.rekap td.rev{background:#FDE047!important;color:#713F12;box-shadow:inset 0 0 0 2px #CA8A04;}
+table.rekap td.me{background:#FFF1E0;}
+.pill-pesan{cursor:pointer;}
+
+/* ===== jendela pesan berbentuk tabel ===== */
+.st-key-tabel_psn [data-testid="stHorizontalBlock"]{flex-direction:row!important;flex-wrap:nowrap!important;gap:.35rem!important;}
+.st-key-tabel_psn [data-testid="stColumn"]{min-width:0!important;}
+.st-key-tabel_psn .th{font-size:.72rem;font-weight:800;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:2px solid var(--line);padding-bottom:.2rem;}
+.st-key-tabel_psn .th.c{text-align:center;} .st-key-tabel_psn .th.r{text-align:right;}
+.st-key-tabel_psn .hrg{text-align:right;font-weight:800;color:var(--brand-d);font-size:.9rem;white-space:nowrap;}
+.st-key-tabel_psn .kat{margin:.55rem 0 .15rem;}
+.st-key-tabel_psn [data-testid="stNumberInput"] input{padding-left:.4rem;padding-right:.2rem;text-align:center;min-width:2rem;}
+.st-key-tabel_psn [data-testid="stNumberInputStepUp"],.st-key-tabel_psn [data-testid="stNumberInputStepDown"]{min-width:1.5rem;}
+.st-key-tabel_psn div[data-baseweb="select"]>div{font-size:.9rem;}
+.total-bar span{letter-spacing:.06em;font-size:.8rem;}
+
+/* ===== rincian & pembayaran ===== */
+table.rinci{font-size:.88rem;} table.rinci td.c,table.rinci th.c{text-align:center;}
+table.rinci tr.gt td{font-weight:900;color:var(--brand-d);border-top:2px solid var(--brand);background:var(--cream);}
+.bank-badge{display:inline-block;background:#0F5C6E;color:#fff;font-weight:900;letter-spacing:.06em;border-radius:10px;padding:.5rem .75rem;font-size:1.05rem;}
+.bank-nama{font-weight:800;color:var(--brand-d);font-size:1.05rem;}
+.bank-an{margin:-.2rem 0 .3rem;font-size:1rem;}
+.bank-row{display:flex;align-items:center;gap:.7rem;margin:.2rem 0 .3rem;}
+.bank-logo{height:2.4rem;width:auto;border-radius:6px;}
+.st-key-rek [data-testid="stCodeCopyButton"],.st-key-rek button{opacity:1!important;visibility:visible!important;}
+.st-key-rek code{font-size:1.25rem!important;letter-spacing:.12em;font-weight:800;}

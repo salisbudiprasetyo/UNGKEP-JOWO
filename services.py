@@ -7,9 +7,25 @@ import logic
 from store import make_store
 
 
+def secret(kunci: str, bawaan=None):
+    """Baca st.secrets dengan aman: tanpa berkas secrets pun aplikasi tetap jalan memakai nilai bawaan."""
+    try:
+        return st.secrets.get(kunci, bawaan)
+    except Exception:
+        return bawaan
+
+
+class _Rahasia:
+    def get(self, k, d=None):
+        return secret(k, d)
+
+    def __getitem__(self, k):
+        return st.secrets[k]
+
+
 @st.cache_resource(show_spinner="Menghubungkan ke database…")
 def get_store():
-    store = make_store(st.secrets)
+    store = make_store(_Rahasia())
     _pastikan_admin(store)
     return store
 
@@ -18,8 +34,8 @@ def _pastikan_admin(store) -> None:
     df = store.all("Pelanggan")
     if (df["role"] == "admin").any():
         return
-    nama = st.secrets.get("admin_name", "ADMIN")
-    sandi = st.secrets.get("admin_password", "admin123")
+    nama = secret("admin_name", "ADMIN")
+    sandi = secret("admin_password", "admin123")
     store.append("Pelanggan", [{
         "nama": nama, "sandi_hash": logic.hash_sandi(sandi), "role": "admin",
         "aktif": "1", "dibuat": logic.now_wib().isoformat(timespec="seconds"),
@@ -27,7 +43,7 @@ def _pastikan_admin(store) -> None:
 
 
 def sandi_awal() -> str:
-    return st.secrets.get("default_password", "ungkep123")
+    return secret("default_password", "ungkep123")
 
 
 # ---- sesi ----

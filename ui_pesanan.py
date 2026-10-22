@@ -23,7 +23,14 @@ def _esc(x) -> str:
     return html.escape(str(x))
 
 
-# ===================================================================== form pesan
+# ===================================================================== form pesan (bentuk tabel)
+GRUP = [("Lauk", "Lauk", ["Ayam Sayur", "Lauk"]), ("Minuman", "Minuman", ["Minuman"]), ("Lain-lain", "Lain-lain", ["Lain-lain"])]
+
+
+def _hrg(n: float, aktif: bool = True) -> None:
+    st.markdown(f'<div class="hrg">{logic.rupiah(n) if aktif and n else "—"}</div>', unsafe_allow_html=True)
+
+
 @st.dialog("Pesan makanan")
 def dialog_pesan(tgl_iso: str, nama: str, langsung: bool = False):
     store = services.get_store()
@@ -32,54 +39,87 @@ def dialog_pesan(tgl_iso: str, nama: str, langsung: bool = False):
     lama = {i["item"]: i for i in orders.items_pesanan(store, tgl, nama)}
     ada = bool(lama)
     rev = orders.revisi_menunggu(store, tgl, nama)
+    awal = {i["item"]: i for i in rev["items"]} if rev and rev["jenis"] == "ubah" else lama  # isian awal form
 
     st.markdown(f"**{label_tgl(tgl)}** · atas nama **{_esc(nama)}**")
     if ada and not langsung:
-        st.info("Mengubah pesanan perlu persetujuan admin. Sebelum disetujui, pesanan lama yang berlaku.")
+        st.info(f"Mengubah pesanan perlu persetujuan admin. Sebelum disetujui, pesanan lama yang berlaku. Batas ubah: {logic.BATAS_TEKS} WIB.")
     if rev:
-        st.warning("Ada permintaan perubahan yang masih menunggu admin. Mengirim lagi akan menggantikannya.")
+        st.warning("Perubahan sebelumnya masih menunggu admin. Mengirim lagi akan menggantikannya.")
 
     sisa = orders.batas_stok(store, tgl, nama)
+    k = f"{tgl_iso}_{nama}"
     pilihan: dict[str, int] = {}
     harga: dict[str, float] = {}
-    for kat in KATEGORI:
-        sub = menu[menu["kategori"] == kat]
-        if sub.empty:
-            continue
-        if kat == "Minuman":
-            wadah = st.expander(f"MINUMAN ({len(sub)} pilihan) – ketuk untuk memilih",
-                                expanded=any(r.nama in lama for r in sub.itertuples()))
-        else:
-            st.markdown(f'<div class="kat">{kat}</div>', unsafe_allow_html=True)
-            wadah = st.container()
-        with wadah:
+    habis: list[str] = []
+
+    def info(r):
+        harga[r.nama] = lama[r.nama]["harga"] if r.nama in lama else float(r.harga)
+        cap = sisa.get(r.nama)
+        if cap is not None and cap == 0:
+            habis.append(f"<b>{_esc(r.nama)}</b>" + (f" (coba: {_esc(r.alternatif)})" if r.alternatif else ""))
+            return None
+        return cap
+
+    with st.container(key="tabel_psn"):
+        h = st.columns([5.2, 3.1, 3.3], gap="small")
+        h[0].markdown('<div class="th">Menu</div>', unsafe_allow_html=True)
+        h[1].markdown('<div class="th c">Jumlah</div>', unsafe_allow_html=True)
+        h[2].markdown('<div class="th r">Harga</div>', unsafe_allow_html=True)
+
+        # --- Nasi: centang (otomatis tercentang untuk pesanan baru) + jumlah + harga
+        nasi = menu[menu["kategori"] == "Nasi"]
+        if not nasi.empty:
+            r = next(nasi.itertuples())
+            cap = info(r)
+            c = st.columns([5.2, 3.1, 3.3], gap="small", vertical_alignment="center")
+            pakai = c[0].checkbox(f"**{r.nama}**", value=(r.nama in awal) if ada else True, key=f"nasi_on_{k}")
+            q = c[1].number_input("Jumlah nasi", 1, cap if cap else 99, int(awal[r.nama]["qty"]) if r.nama in awal else 1,
+                                  key=f"nasi_q_{k}", disabled=not pakai, label_visibility="collapsed")
+            if pakai:
+                pilihan[r.nama] = int(q)
+            with c[2]:
+                _hrg(q * harga[r.nama], pakai)
+
+        # --- Lauk / Minuman / Lain-lain: pilih menu (sejajar dengan Nasi) + jumlah + harga
+        for judul, kunci, kats in GRUP:
+            sub = menu[menu["kategori"].isin(kats)]
+            if sub.empty:
+                continue
+            ada_item = [i for i in awal.values() if i["kategori"] in kats]
+            nbaris = max(1, len(ada_item)) + st.session_state.get(f"ex_{kunci}_{k}", 0)
+            tersedia = []
             for r in sub.itertuples():
-                cap = sisa.get(r.nama)
-                harga[r.nama] = lama[r.nama]["harga"] if r.nama in lama else float(r.harga)
-                if cap is not None and cap == 0:
-                    alt = f" Coba: <b>{_esc(r.alternatif)}</b>." if r.alternatif else ""
-                    st.markdown(f'<div class="habis"><b>{_esc(r.nama)}</b> sedang habis.{alt}</div>', unsafe_allow_html=True)
-                    pilihan[r.nama] = 0
-                    continue
-                ada_qty = lama[r.nama]["qty"] if r.nama in lama else 0
-                maks = max(5, ada_qty) if cap is None else cap
-                opsi = list(range(0, maks + 1))
-                label = f"{r.nama} · {logic.rupiah(harga[r.nama])}" + (f"  (sisa {cap})" if cap is not None else "")
-                q = st.segmented_control(label, opsi, default=min(ada_qty, maks), selection_mode="single",
-                                         format_func=lambda n: "–" if n == 0 else str(n), width="stretch",
-                                         key=f"q_{tgl_iso}_{nama}_{r.nama}")
-                pilihan[r.nama] = int(q or 0)
-        if kat == "Minuman":
-            dipilih = [f"{n} ×{q}" for n, q in pilihan.items() if q and n in set(sub["nama"])]
-            if dipilih:
-                st.caption("Minuman dipilih: " + " · ".join(dipilih))
+                if info(r) is not None or sisa.get(r.nama) is None:
+                    tersedia.append(r)
+            nama_opsi = [r.nama for r in tersedia]
+            st.markdown(f'<div class="kat">{judul}</div>', unsafe_allow_html=True)
+            for b in range(nbaris):
+                aw = ada_item[b] if b < len(ada_item) else None
+                idx = nama_opsi.index(aw["item"]) if aw and aw["item"] in nama_opsi else None
+                c = st.columns([5.2, 3.1, 3.3], gap="small", vertical_alignment="center")
+                pil = c[0].selectbox(f"Pilih {judul.lower()}", nama_opsi, index=idx, placeholder=f"Pilih {judul.lower()}",
+                                     key=f"sel_{kunci}_{b}_{k}", label_visibility="collapsed")
+                cap = sisa.get(pil) if pil else None
+                q = c[1].number_input(f"Jumlah {judul.lower()}", 1, cap if cap else 99, int(aw["qty"]) if aw else 1,
+                                      key=f"qty_{kunci}_{b}_{k}", disabled=not pil, label_visibility="collapsed")
+                if pil:
+                    pilihan[pil] = pilihan.get(pil, 0) + int(q)
+                with c[2]:
+                    _hrg(q * harga[pil] if pil else 0, bool(pil))
+            if st.button(f"＋ Tambah {judul.lower()}", key=f"tambah_{kunci}_{k}", type="tertiary"):
+                st.session_state[f"ex_{kunci}_{k}"] = st.session_state.get(f"ex_{kunci}_{k}", 0) + 1
+                st.rerun(scope="fragment")
+
+    if habis:
+        st.markdown('<div class="habis">Sedang habis: ' + ", ".join(habis) + "</div>", unsafe_allow_html=True)
 
     catatan = st.text_input("Catatan (opsional)", value=orders.catatan_pesanan(store, tgl, nama),
-                            placeholder="mis. sambal dipisah, nasi sedikit", key=f"cat_{tgl_iso}_{nama}")
+                            placeholder="mis. sambal dipisah, nasi sedikit", key=f"cat_{k}")
     total = sum(q * harga[n] for n, q in pilihan.items())
 
     with st.container(key="bar_total"):
-        st.markdown(f'<div class="total-bar"><span>Total</span><b>{logic.rupiah(total)}</b></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="total-bar"><span>TOTAL PESANAN</span><b>{logic.rupiah(total)}</b></div>', unsafe_allow_html=True)
         if st.session_state.get("_konfirm_batal"):
             st.warning("Yakin batalkan seluruh pesanan ini?")
             if st.button("Ya, batalkan pesanan", type="primary", width="stretch"):
@@ -107,6 +147,149 @@ def dialog_pesan(tgl_iso: str, nama: str, langsung: bool = False):
                 st.rerun(scope="fragment")
 
 
+# ===================================================================== rincian pesanan (riwayat, hanya baca)
+def _rincian_tabel(items: list[dict]) -> str:
+    if not items:
+        return '<div class="kosong-info">— kosong (dibatalkan) —</div>'
+    rows = "".join(f"<tr><td>{_esc(i['item'])}</td><td class='c'>{i['qty']}</td><td>{logic.rupiah(i['harga'])}</td>"
+                   f"<td>{logic.rupiah(i['qty'] * i['harga'])}</td></tr>" for i in items)
+    tot = sum(i["qty"] * i["harga"] for i in items)
+    return (f'<table class="mini rinci"><tr><th>Menu</th><th class="c">Jml</th><th>Harga</th><th>Total</th></tr>{rows}'
+            f'<tr class="gt"><td colspan="3">TOTAL</td><td>{logic.rupiah(tot)}</td></tr></table>')
+
+
+@st.dialog("Rincian pesanan")
+def dialog_rincian(tgl_iso: str, nama: str, admin: bool = False):
+    store = services.get_store()
+    tgl = date.fromisoformat(tgl_iso)
+    items = orders.items_pesanan(store, tgl, nama)
+    rev = orders.revisi_menunggu(store, tgl, nama)
+    st.markdown(f"**{label_tgl(tgl)} {tgl.year}** · **{_esc(nama)}**")
+    if not items:
+        st.info("Tidak ada pesanan pada tanggal ini.")
+    else:
+        st.markdown(_rincian_tabel(items), unsafe_allow_html=True)
+        cat = orders.catatan_pesanan(store, tgl, nama)
+        if cat:
+            st.caption(f"📝 {cat}")
+    if rev:
+        st.markdown('<div class="psn s-rev"><b>Menunggu konfirmasi admin</b> — perubahan yang diajukan:</div>', unsafe_allow_html=True)
+        st.markdown(_rincian_tabel(rev["items"]) if rev["jenis"] != "batal" else '<div class="kosong-info">Permintaan batal pesanan</div>',
+                    unsafe_allow_html=True)
+        if admin:
+            c1, c2 = st.columns(2)
+            if c1.button("Konfirmasi", type="primary", width="stretch"):
+                orders.konfirmasi_revisi(store, tgl, nama)
+                st.rerun()
+            if c2.button("Tolak", width="stretch"):
+                orders.tolak_revisi(store, tgl, nama)
+                st.rerun()
+    if admin:
+        if st.button("Ubah pesanan (admin)" if items else "Buat pesanan", width="stretch"):
+            st.session_state["_open"] = ("pesan", tgl_iso, nama, True)
+            st.rerun()
+    elif items and logic.bisa_edit(tgl):
+        if st.button("Ubah / batalkan pesanan", type="primary", width="stretch"):
+            st.session_state["_open"] = ("pesan", tgl_iso, nama, False)
+            st.rerun()
+    elif items:
+        st.caption(f"🔒 Sudah lewat batas {logic.BATAS_TEKS} WIB, pesanan ini tidak bisa diubah lagi.")
+
+
+# ===================================================================== tagihan & pembayaran
+def rekening() -> dict:
+    return {"bank": services.secret("rekening_bank", "BNI"), "nomor": services.secret("rekening_nomor", "0258578828"),
+            "nama": services.secret("rekening_nama", "NUR HABIBAH")}
+
+
+def _bukti_img(b64: str) -> None:
+    import base64
+    if b64:
+        st.image(base64.b64decode(b64), width=220)
+
+
+@st.dialog("Tagihan kasbon")
+def dialog_tagihan(kode: str, nama: str, admin: bool = False):
+    import payments
+    store = services.get_store()
+    th, bl = (int(x) for x in kode.split("-"))
+    start = date(th, bl, logic.CUTOFF_HARI + 1)
+    a, b = logic.periode_untuk(start)
+    t = payments.tagihan(store, nama, kode)
+    st.markdown(f"**{_esc(nama)}** · periode {logic.label_periode(a, b)}")
+    if not t["per_hari"]:
+        st.info("Belum ada pembelian pada periode ini.")
+        return
+    rows = "".join(f"<tr><td>{label_tgl(date.fromisoformat(d))}</td><td>{logic.rupiah(v)}</td></tr>" for d, v in t["per_hari"].items())
+    st.markdown(f'<table class="mini rinci"><tr><th>Tanggal</th><th>Total</th></tr>{rows}'
+                f'<tr class="gt"><td>TOTAL KASBON</td><td>{logic.rupiah(t["total"])}</td></tr></table>', unsafe_allow_html=True)
+    stat = payments.status_periode(store, nama, kode)
+    if t["lunas"]:
+        st.success("✓ LUNAS")
+    else:
+        st.markdown(f'<div class="kartu"><small>Belum dibayar</small><div class="besar">{logic.rupiah(t["sisa"])}</div>'
+                    f'<small>Jatuh tempo {logic.CUTOFF_HARI} {logic.BULAN[b.month]} {b.year} · status: {stat}</small></div>', unsafe_allow_html=True)
+    cek = payments.menunggu_cek(store, nama, kode)
+    for p in cek.itertuples():
+        st.warning(f"Bukti transfer {logic.rupiah(float(p.jumlah))} menunggu dicek admin.")
+        if admin:
+            _bukti_img(p.bukti)
+    if admin:
+        if not t["lunas"]:
+            if st.button("Konfirmasi lunas", type="primary", width="stretch"):
+                payments.konfirmasi_lunas(store, nama, kode)
+                st.rerun()
+            if not cek.empty and st.button("Tolak bukti transfer", width="stretch"):
+                payments.tolak_pembayaran(store, nama, kode)
+                st.rerun()
+        elif st.button("Batalkan status lunas", width="stretch"):
+            payments.batalkan_lunas(store, nama, kode)
+            st.rerun()
+    elif not t["lunas"]:
+        if st.button("Bayar sekarang", type="primary", width="stretch"):
+            st.session_state["_open"] = ("bayar", kode, nama)
+            st.rerun()
+
+
+@st.dialog("Bayar kasbon")
+def dialog_bayar(kode: str, nama: str):
+    import payments
+    from pathlib import Path
+    store = services.get_store()
+    t = payments.tagihan(store, nama, kode)
+    if t["sisa"] <= 0:
+        st.success("Tidak ada tagihan yang tersisa. Terima kasih!")
+        return
+    rek = rekening()
+    st.markdown(f'<div class="kartu"><small>Yang harus dibayar</small><div class="besar">{logic.rupiah(t["sisa"])}</div></div>',
+                unsafe_allow_html=True)
+    st.markdown("**Transfer ke rekening:**")
+    logo = Path(__file__).parent / "assets" / "bni.png"
+    if logo.exists():
+        import base64
+        lg = f'<img class="bank-logo" src="data:image/png;base64,{base64.b64encode(logo.read_bytes()).decode()}">'
+    else:
+        lg = f'<span class="bank-badge">{_esc(rek["bank"])}</span>'
+    st.markdown(f'<div class="bank-row">{lg}<span class="bank-nama">Bank {_esc(rek["bank"])}</span></div>', unsafe_allow_html=True)
+    with st.container(key="rek"):
+        st.code(rek["nomor"], language=None)  # ikon salin ada di pojok kanan kotak
+    st.markdown(f'<div class="bank-an">a.n. <b>{_esc(rek["nama"])}</b></div>', unsafe_allow_html=True)
+    st.divider()
+    jumlah = st.number_input("Jumlah yang kamu transfer (Rp)", min_value=0, value=int(t["sisa"]), step=1000, key=f"bayar_jml_{kode}")
+    foto = st.file_uploader("Unggah foto bukti pembayaran", type=["jpg", "jpeg", "png", "webp"], key=f"bayar_foto_{kode}")
+    if foto:
+        st.image(foto, width=200)
+    st.caption("Jika jumlahnya sama dengan tagihan, kasbon langsung berstatus lunas. Jika berbeda, bukti tetap tersimpan dan dicek admin.")
+    if st.button("Kirim bukti pembayaran", type="primary", width="stretch"):
+        err, status = payments.kirim_pembayaran(store, nama, kode, float(jumlah), foto.getvalue() if foto else None)
+        if err:
+            st.error(err)
+        else:
+            st.session_state["_sukses"] = {"kind": "bayar-oto" if status == payments.LUNAS_OTO else "bayar-cek",
+                                           "tgl": logic.today_wib().isoformat(), "total": float(jumlah)}
+            st.rerun()
+
+
 @st.dialog("Terima kasih 🙏")
 def dialog_sukses(info: dict):
     tgl = date.fromisoformat(info["tgl"])
@@ -114,13 +297,19 @@ def dialog_sukses(info: dict):
     if kind == "baru":
         st.markdown(f"### Terima kasih atas pembeliannya!")
         st.markdown(f"Pesanan **{label_tgl(tgl)}** sebesar **{logic.rupiah(info['total'])}** sudah tercatat sebagai kasbon.")
-        st.caption("Masih bisa diubah atau dibatalkan sampai pukul 10:15 WIB hari itu.")
+        st.caption(f"Masih bisa diubah atau dibatalkan sampai pukul {logic.BATAS_TEKS} WIB hari itu.")
     elif kind == "revisi":
         st.markdown("### Perubahan terkirim")
         st.markdown("Admin akan mengecek. Sampai disetujui, **pesanan lama** yang berlaku dan tertagih.")
     elif kind == "batal":
         st.markdown("### Permintaan batal terkirim")
         st.markdown("Pesanan baru benar-benar batal setelah admin mengonfirmasi.")
+    elif kind == "bayar-oto":
+        st.markdown("### Pembayaran diterima ✓")
+        st.markdown(f"Nominal **{logic.rupiah(info['total'])}** sesuai tagihan. Kasbon periode ini berstatus **LUNAS**.")
+    elif kind == "bayar-cek":
+        st.markdown("### Bukti pembayaran tersimpan")
+        st.markdown(f"Nominal **{logic.rupiah(info['total'])}** belum sama dengan tagihan, jadi admin akan mengeceknya dulu.")
     elif kind == "batal-langsung":
         st.markdown("### Pesanan dibatalkan")
     else:

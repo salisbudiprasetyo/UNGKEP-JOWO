@@ -52,7 +52,7 @@ def tanggal_aktif(store) -> date | None:
 
 
 def bisa_pesan(store, tgl: date, sekarang=None) -> bool:
-    """Tombol PESAN aktif bila menu tanggal itu sudah ada dan belum lewat batas 10:15 pada hari H."""
+    """Tombol PESAN aktif bila menu tanggal itu sudah ada dan belum lewat batas jam pada hari H."""
     return tgl in set(tanggal_menu(store)) and logic.bisa_edit(tgl, sekarang)
 
 
@@ -143,7 +143,7 @@ def simpan_pesanan(store, tgl: date, nama: str, pilihan: dict[str, int], catatan
                    langsung: bool = False, sekarang=None) -> tuple[str | None, str]:
     """Kembalikan (galat, jenis). jenis: 'baru' | 'revisi' | 'langsung'."""
     if not langsung and not bisa_pesan(store, tgl, sekarang):
-        return "Waktu pemesanan untuk tanggal ini sudah ditutup (batas 10:15 WIB).", ""
+        return f"Waktu pemesanan untuk tanggal ini sudah ditutup (batas {logic.BATAS_TEKS} WIB).", ""
     items, err = _susun_items(store, tgl, nama, pilihan)
     if err:
         return err, ""
@@ -177,7 +177,7 @@ def batalkan_pesanan(store, tgl: date, nama: str, langsung: bool = False, sekara
     if not items_pesanan(store, tgl, nama):
         return "Pesanan tidak ditemukan."
     if not langsung and not logic.bisa_edit(tgl, sekarang):
-        return "Waktu pembatalan sudah lewat (batas 10:15 WIB)."
+        return f"Waktu pembatalan sudah lewat (batas {logic.BATAS_TEKS} WIB)."
     wkt = (sekarang or logic.now_wib()).isoformat(timespec="seconds")
     if langsung:
         store.update_where("Kasbon", {"order_id": order_id(tgl, nama)}, {"status_pesanan": "Batal"})

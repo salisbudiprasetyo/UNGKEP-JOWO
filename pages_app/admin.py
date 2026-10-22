@@ -5,7 +5,10 @@ from datetime import timedelta
 import pandas as pd
 import streamlit as st
 
+import base64
+
 import logic
+import payments
 import services
 
 store = services.get_store()
@@ -23,8 +26,8 @@ st.markdown('<div class="hero"><h1>ADMIN</h1><div class="sub">UNGKEP JOWO</div><
 KAT_MASTER = ["Nasi", "Lauk", "Lain-lain"]                 # menu master: makanan saja
 KAT_MAKANAN = ["Nasi", "Ayam Sayur", "Lauk", "Lain-lain"]  # urutan tampil (Ayam Sayur = data lama)
 
-tab_harian, tab_master, tab_minuman, tab_sandi, tab_pelanggan, tab_awal = st.tabs(
-    ["Menu harian", "Menu master", "Minuman", "Sandi", "Pelanggan", "Data awal"])
+tab_harian, tab_bayar, tab_master, tab_minuman, tab_sandi, tab_pelanggan, tab_awal = st.tabs(
+    ["Menu harian", "Pembayaran", "Menu master", "Minuman", "Sandi", "Pelanggan", "Data awal"])
 
 
 def _angka(x, default=0.0):
@@ -256,3 +259,76 @@ with tab_pelanggan:
         st.success(f"{len(tambah)} pelanggan diimpor, {lewati} dilewati (sudah ada).")
     st.subheader("Daftar")
     st.dataframe(df[["nama", "aktif", "dibuat"]], hide_index=True, width="stretch")
+
+
+# ---------------------------------------------------------------- pembayaran kasbon
+with tab_bayar:
+    hari_ini = logic.today_wib()
+    p0, _ = logic.periode_untuk(hari_ini)
+    opsi = [logic.geser_periode(p0, -i) for i in range(0, 6)]
+    lab = [logic.label_periode(a, b) + (" (berjalan)" if i == 0 else "") for i, (a, b) in enumerate(opsi)]
+    pil = st.selectbox("Periode kasbon", lab, key="bayar_periode")
+    mulai, akhir = opsi[lab.index(pil)]
+    kode = logic.kode_periode(mulai)
+    akun = store.all("Pelanggan")
+    nama_pel = sorted(akun[(akun["role"] != "admin") & (akun["aktif"] != "0")]["nama"].tolist(), key=str.lower)
+    baris = []
+    for n in nama_pel:
+        t = payments.tagihan(store, n, kode)
+        if t["total"] > 0:
+            baris.append({"Nama": n, "Total": t["total"], "Sisa": t["sisa"], "Status": payments.status_periode(store, n, kode)})
+    total_semua = sum(b["Total"] for b in baris)
+    total_sisa = sum(b["Sisa"] for b in baris)
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Total kasbon", logic.rupiah(total_semua))
+    c2.metric("Sudah lunas", logic.rupiah(total_semua - total_sisa))
+    c3.metric("Belum lunas", logic.rupiah(total_sisa))
+    st.caption(f"Jatuh tempo {logic.CUTOFF_HARI} {logic.BULAN[akhir.month]} {akhir.year}. Pelanggan membayar lewat tombol “Bayar sekarang”; "
+               "bila nominal sama dengan tagihan, otomatis lunas.")
+
+    cek = payments.daftar(store, kode=kode)
+    cek = cek[cek["status"] == payments.CEK]
+    if not cek.empty:
+        st.markdown("#### Perlu dicek")
+        for p in cek.itertuples():
+            with st.container(border=True):
+                st.markdown(f"**{p.pelanggan}** transfer **{logic.rupiah(float(p.jumlah))}** · tagihan {logic.rupiah(float(p.tagihan))}")
+                if p.bukti:
+                    st.image(base64.b64decode(p.bukti), width=220)
+                a, b = st.columns(2)
+                if a.button("Konfirmasi lunas", key=f"kl_{p.id}", type="primary", width="stretch"):
+                    payments.konfirmasi_lunas(store, p.pelanggan, kode)
+                    st.rerun()
+                if b.button("Tolak", key=f"tl_{p.id}", width="stretch"):
+                    payments.tolak_pembayaran(store, p.pelanggan, kode)
+                    st.rerun()
+
+    st.markdown("#### Rekap per pelanggan")
+    if baris:
+        tbl = pd.DataFrame(baris)
+        tbl["Total"] = tbl["Total"].map(logic.rupiah)
+        tbl["Sisa"] = tbl["Sisa"].map(logic.rupiah)
+        st.dataframe(tbl, hide_index=True, width="stretch")
+    else:
+        st.info("Belum ada kasbon pada periode ini.")
+
+    st.markdown("#### Tandai lunas (tunai / lainnya)")
+    belum = [b["Nama"] for b in baris if b["Sisa"] > 0]
+    n_lunas = st.selectbox("Pelanggan", belum, index=None, placeholder="Pilih pelanggan yang belum lunas", key="bayar_pilih")
+    if st.button("Konfirmasi lunas", disabled=not n_lunas, key="bayar_tunai", width="stretch"):
+        payments.konfirmasi_lunas(store, n_lunas, kode)
+        st.rerun()
+    sudah = [b["Nama"] for b in baris if b["Sisa"] == 0]
+    if sudah:
+        n_batal = st.selectbox("Salah tandai? Pilih pelanggan", sudah, index=None, placeholder="Batalkan status lunas", key="bayar_batal")
+        if st.button("Batalkan status lunas", disabled=not n_batal, key="bayar_batal_btn", width="stretch"):
+            payments.batalkan_lunas(store, n_batal, kode)
+            st.rerun()
+
+    riwayat = payments.daftar(store, kode=kode)
+    if not riwayat.empty:
+        st.markdown("#### Riwayat pembayaran")
+        r = riwayat.drop(columns=["bukti", "id", "periode"]).rename(columns={
+            "waktu": "Waktu", "pelanggan": "Nama", "jumlah": "Dibayar", "tagihan": "Tagihan", "metode": "Metode",
+            "status": "Status", "catatan": "Catatan"})
+        st.dataframe(r.iloc[::-1], hide_index=True, width="stretch")

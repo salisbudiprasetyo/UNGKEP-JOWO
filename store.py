@@ -33,6 +33,8 @@ SCHEMA: dict[str, list[str]] = {
                "subtotal", "catatan", "status_pesanan", "status_bayar", "dibuat"],
     # revisi pesanan dari pelanggan yang menunggu konfirmasi admin (items = JSON daftar item baru)
     "Revisi": ["tanggal", "pelanggan", "jenis", "items", "catatan", "waktu", "status"],
+    # pembayaran kasbon: bukti transfer disimpan sebagai foto kecil (base64) di kolom bukti
+    "Pembayaran": ["id", "waktu", "pelanggan", "periode", "jumlah", "tagihan", "metode", "status", "bukti", "catatan"],
     # backup tabel "Pesanan Hari Ini" (satu baris per pelanggan per hari)
     "RecordHarian": ["tanggal", "periode", "kelompok", "pelanggan", "pesanan", "jumlah", "status", "dicatat"],
 }
