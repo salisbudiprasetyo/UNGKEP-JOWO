@@ -34,7 +34,9 @@ SCHEMA: dict[str, list[str]] = {
     # revisi pesanan dari pelanggan yang menunggu konfirmasi admin (items = JSON daftar item baru)
     "Revisi": ["tanggal", "pelanggan", "jenis", "items", "catatan", "waktu", "status"],
     # pembayaran kasbon: bukti transfer disimpan sebagai foto kecil (base64) di kolom bukti
-    "Pembayaran": ["id", "waktu", "pelanggan", "periode", "jumlah", "tagihan", "metode", "status", "bukti", "catatan"],
+    "Pembayaran": ["id", "waktu", "pelanggan", "periode", "jumlah", "tagihan", "metode", "status", "bukti", "catatan", "tanggal"],
+    # tanggal libur pemesanan (diatur admin)
+    "Libur": ["tanggal", "keterangan", "dibuat"],
     # backup tabel "Pesanan Hari Ini" (satu baris per pelanggan per hari)
     "RecordHarian": ["tanggal", "periode", "kelompok", "pelanggan", "pesanan", "jumlah", "status", "dicatat"],
 }
@@ -117,6 +119,12 @@ class SheetsStore:
         except gspread.WorksheetNotFound:
             ws = self.sh.add_worksheet(title=sheet, rows=500, cols=len(SCHEMA[sheet]) + 2)
             ws.update([SCHEMA[sheet]], "A1")
+        else:
+            try:  # samakan judul kolom bila skema bertambah kolom baru
+                if ws.row_values(1) != SCHEMA[sheet]:
+                    ws.update([SCHEMA[sheet]], "A1")
+            except Exception:
+                pass
         self._ws[sheet] = ws
         return ws
 

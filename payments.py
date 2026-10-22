@@ -23,14 +23,19 @@ def _kasbon(store) -> pd.DataFrame:
     return df[df["status_pesanan"] != "Batal"]
 
 
-def tagihan(store, nama: str, kode: str) -> dict:
-    """Ringkasan kasbon satu pelanggan pada satu periode: total, sisa (belum lunas), dan rincian per tanggal."""
+def tagihan(store, nama: str, kode: str, tanggal: str | None = None) -> dict:
+    """Ringkasan kasbon satu pelanggan pada satu periode (atau satu tanggal bila `tanggal` diisi):
+    total, sisa (belum lunas), dan rincian per tanggal dengan status lunas."""
     df = _kasbon(store)
     df = df[(df["pelanggan"] == nama) & (df["periode"] == kode)]
+    if tanggal:
+        df = df[df["tanggal"] == tanggal]
     total = float(df["subtotal"].sum())
     sisa = float(df.loc[df["status_bayar"] != "Lunas", "subtotal"].sum())
-    per_hari = df.groupby("tanggal")["subtotal"].sum().sort_index().to_dict()
-    return {"total": total, "sisa": sisa, "lunas": total > 0 and sisa == 0, "per_hari": per_hari}
+    per_hari = {}
+    for tgl, g in df.groupby("tanggal"):
+        per_hari[tgl] = {"total": float(g["subtotal"].sum()), "lunas": bool((g["status_bayar"] == "Lunas").all())}
+    return {"total": total, "sisa": sisa, "lunas": total > 0 and sisa == 0, "per_hari": dict(sorted(per_hari.items()))}
 
 
 def daftar(store, nama: str | None = None, kode: str | None = None) -> pd.DataFrame:
@@ -42,9 +47,12 @@ def daftar(store, nama: str | None = None, kode: str | None = None) -> pd.DataFr
     return df
 
 
-def menunggu_cek(store, nama: str, kode: str) -> pd.DataFrame:
+def menunggu_cek(store, nama: str, kode: str, tanggal: str | None = None) -> pd.DataFrame:
     df = daftar(store, nama, kode)
-    return df[df["status"] == CEK]
+    df = df[df["status"] == CEK]
+    if tanggal:  # bukti khusus tanggal itu, atau bukti satu periode penuh
+        df = df[(df["tanggal"] == tanggal) | (df["tanggal"] == "")]
+    return df
 
 
 def kompres_bukti(data: bytes, batas: int = 44000) -> str:
@@ -67,14 +75,22 @@ def _id() -> str:
     return logic.now_wib().strftime("%Y%m%d%H%M%S%f")
 
 
-def _tandai_lunas(store, nama: str, kode: str) -> None:
-    store.update_where("Kasbon", {"pelanggan": nama, "periode": kode}, {"status_bayar": "Lunas"})
+def _cocok(nama: str, kode: str, tgl: str | None) -> dict:
+    m = {"pelanggan": nama, "periode": kode}
+    if tgl:
+        m["tanggal"] = tgl
+    return m
 
 
-def kirim_pembayaran(store, nama: str, kode: str, jumlah: float, foto: bytes | None) -> tuple[str | None, str]:
+def _tandai_lunas(store, nama: str, kode: str, tgl: str | None = None) -> None:
+    store.update_where("Kasbon", _cocok(nama, kode, tgl), {"status_bayar": "Lunas"})
+
+
+def kirim_pembayaran(store, nama: str, kode: str, jumlah: float, foto: bytes | None,
+                     tgl: str | None = None) -> tuple[str | None, str]:
     """Pelanggan mengirim bukti transfer. Bila nominal sama dengan sisa tagihan -> lunas otomatis,
     selain itu tetap disimpan dan menunggu pengecekan admin. Kembalikan (galat, status)."""
-    t = tagihan(store, nama, kode)
+    t = tagihan(store, nama, kode, tgl)
     if t["sisa"] <= 0:
         return "Tidak ada tagihan yang tersisa pada periode ini.", ""
     if jumlah <= 0:
@@ -91,35 +107,42 @@ def kirim_pembayaran(store, nama: str, kode: str, jumlah: float, foto: bytes | N
     store.append("Pembayaran", [{
         "id": _id(), "waktu": logic.now_wib().isoformat(timespec="seconds"), "pelanggan": nama, "periode": kode,
         "jumlah": int(round(jumlah)), "tagihan": int(round(t["sisa"])), "metode": "Transfer BNI",
-        "status": status, "bukti": bukti, "catatan": "",
+        "status": status, "bukti": bukti, "catatan": "", "tanggal": tgl or "",
     }])
     if status == LUNAS_OTO:
-        _tandai_lunas(store, nama, kode)
+        _tandai_lunas(store, nama, kode, tgl)
     return None, status
 
 
-def konfirmasi_lunas(store, nama: str, kode: str, metode: str = "Tunai") -> None:
-    """Admin menandai kasbon periode ini lunas. Pembayaran yang menunggu cek ikut disetujui."""
-    t = tagihan(store, nama, kode)
-    ada = store.update_where("Pembayaran", {"pelanggan": nama, "periode": kode, "status": CEK}, {"status": LUNAS})
+def konfirmasi_lunas(store, nama: str, kode: str, tgl: str | None = None, metode: str = "Tunai") -> None:
+    """Admin menandai kasbon (satu tanggal, atau satu periode penuh) lunas. Bukti yang menunggu cek ikut disetujui."""
+    t = tagihan(store, nama, kode, tgl)
+    ada = store.update_where("Pembayaran", {"pelanggan": nama, "periode": kode, "status": CEK, "tanggal": tgl or ""},
+                             {"status": LUNAS})
     if not ada and t["sisa"] > 0:
         store.append("Pembayaran", [{
             "id": _id(), "waktu": logic.now_wib().isoformat(timespec="seconds"), "pelanggan": nama, "periode": kode,
             "jumlah": int(round(t["sisa"])), "tagihan": int(round(t["sisa"])), "metode": metode,
-            "status": LUNAS, "bukti": "", "catatan": "Dikonfirmasi admin",
+            "status": LUNAS, "bukti": "", "catatan": "Dikonfirmasi admin", "tanggal": tgl or "",
         }])
-    _tandai_lunas(store, nama, kode)
+    _tandai_lunas(store, nama, kode, tgl)
 
 
-def tolak_pembayaran(store, nama: str, kode: str) -> None:
-    store.update_where("Pembayaran", {"pelanggan": nama, "periode": kode, "status": CEK}, {"status": DITOLAK})
+def tolak_pembayaran(store, nama: str, kode: str, tgl: str | None = None) -> None:
+    m = {"pelanggan": nama, "periode": kode, "status": CEK}
+    if tgl is not None:
+        m["tanggal"] = tgl
+    store.update_where("Pembayaran", m, {"status": DITOLAK})
 
 
-def batalkan_lunas(store, nama: str, kode: str) -> None:
+def batalkan_lunas(store, nama: str, kode: str, tgl: str | None = None) -> None:
     """Admin salah menandai lunas: kembalikan ke belum lunas."""
-    store.update_where("Kasbon", {"pelanggan": nama, "periode": kode}, {"status_bayar": "Belum"})
-    store.update_where("Pembayaran", {"pelanggan": nama, "periode": kode, "status": LUNAS}, {"status": DITOLAK})
-    store.update_where("Pembayaran", {"pelanggan": nama, "periode": kode, "status": LUNAS_OTO}, {"status": DITOLAK})
+    store.update_where("Kasbon", _cocok(nama, kode, tgl), {"status_bayar": "Belum"})
+    for st_ in (LUNAS, LUNAS_OTO):
+        m = {"pelanggan": nama, "periode": kode, "status": st_}
+        if tgl:
+            m["tanggal"] = tgl
+        store.update_where("Pembayaran", m, {"status": DITOLAK})
 
 
 def status_periode(store, nama: str, kode: str) -> str:

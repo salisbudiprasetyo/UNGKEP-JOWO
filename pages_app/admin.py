@@ -26,8 +26,8 @@ st.markdown('<div class="hero"><h1>ADMIN</h1><div class="sub">UNGKEP JOWO</div><
 KAT_MASTER = ["Nasi", "Lauk", "Lain-lain"]                 # menu master: makanan saja
 KAT_MAKANAN = ["Nasi", "Ayam Sayur", "Lauk", "Lain-lain"]  # urutan tampil (Ayam Sayur = data lama)
 
-tab_harian, tab_bayar, tab_master, tab_minuman, tab_sandi, tab_pelanggan, tab_awal = st.tabs(
-    ["Menu harian", "Pembayaran", "Menu master", "Minuman", "Sandi", "Pelanggan", "Data awal"])
+tab_harian, tab_libur, tab_bayar, tab_master, tab_minuman, tab_sandi, tab_pelanggan, tab_awal = st.tabs(
+    ["Menu harian", "Libur", "Pembayaran", "Menu master", "Minuman", "Sandi", "Pelanggan", "Data awal"])
 
 
 def _angka(x, default=0.0):
@@ -292,15 +292,15 @@ with tab_bayar:
         st.markdown("#### Perlu dicek")
         for p in cek.itertuples():
             with st.container(border=True):
-                st.markdown(f"**{p.pelanggan}** transfer **{logic.rupiah(float(p.jumlah))}** · tagihan {logic.rupiah(float(p.tagihan))}")
+                st.markdown((f"Pesanan {p.tanggal} · " if p.tanggal else "") + f"**{p.pelanggan}** transfer **{logic.rupiah(float(p.jumlah))}** · tagihan {logic.rupiah(float(p.tagihan))}")
                 if p.bukti:
                     st.image(base64.b64decode(p.bukti), width=220)
                 a, b = st.columns(2)
                 if a.button("Konfirmasi lunas", key=f"kl_{p.id}", type="primary", width="stretch"):
-                    payments.konfirmasi_lunas(store, p.pelanggan, kode)
+                    payments.konfirmasi_lunas(store, p.pelanggan, kode, tgl=p.tanggal or None)
                     st.rerun()
                 if b.button("Tolak", key=f"tl_{p.id}", width="stretch"):
-                    payments.tolak_pembayaran(store, p.pelanggan, kode)
+                    payments.tolak_pembayaran(store, p.pelanggan, kode, tgl=p.tanggal or None)
                     st.rerun()
 
     st.markdown("#### Rekap per pelanggan")
@@ -332,3 +332,41 @@ with tab_bayar:
             "waktu": "Waktu", "pelanggan": "Nama", "jumlah": "Dibayar", "tagihan": "Tagihan", "metode": "Metode",
             "status": "Status", "catatan": "Catatan"})
         st.dataframe(r.iloc[::-1], hide_index=True, width="stretch")
+
+
+# ---------------------------------------------------------------- libur pemesanan
+import orders
+
+with tab_libur:
+    st.caption("Pilih tanggal yang libur lalu konfirmasi. Di tanggal itu tombol PESAN tidak muncul dan kolomnya bertanda “libur”.")
+    hari_ini_l = logic.today_wib()
+    tgl_l = st.date_input("Tanggal libur", value=hari_ini_l, min_value=hari_ini_l, key="libur_tgl", format="DD/MM/YYYY")
+    ket_l = st.text_input("Keterangan (opsional)", placeholder="mis. libur nasional, warung tutup", key="libur_ket")
+    sudah_libur = orders.libur_map(store)
+    if tgl_l in sudah_libur:
+        st.info("Tanggal ini sudah libur.")
+    elif st.button("Jadikan libur", type="primary", width="stretch", key="libur_btn"):
+        st.session_state["_libur_konfirm"] = (tgl_l.isoformat(), ket_l.strip())
+    pend = st.session_state.get("_libur_konfirm")
+    if pend and pend[0] == tgl_l.isoformat() and tgl_l not in sudah_libur:
+        n_psn = len(orders.pesanan_tgl(store, tgl_l)["pelanggan"].unique())
+        st.warning(f"Yakin **{logic.tanggal_panjang(tgl_l)}** libur pemesanan?"
+                   + (f" Sudah ada {n_psn} pelanggan yang memesan; pesanan mereka tidak dihapus otomatis." if n_psn else ""))
+        c1, c2 = st.columns(2)
+        if c1.button("Ya, libur", type="primary", width="stretch", key="libur_ya"):
+            orders.set_libur(store, tgl_l, pend[1])
+            st.session_state.pop("_libur_konfirm", None)
+            st.rerun()
+        if c2.button("Batal", width="stretch", key="libur_batal"):
+            st.session_state.pop("_libur_konfirm", None)
+            st.rerun()
+    mendatang = {d: k for d, k in sudah_libur.items() if d >= hari_ini_l}
+    st.markdown("#### Libur yang akan datang")
+    if not mendatang:
+        st.caption("Belum ada.")
+    for d, k in sorted(mendatang.items()):
+        with st.container(border=True):
+            st.markdown(f"**{logic.tanggal_panjang(d)}**" + (f" · {k}" if k else ""))
+            if st.button("Batalkan libur", key=f"hl_{d}", width="stretch"):
+                orders.hapus_libur(store, d)
+                st.rerun()

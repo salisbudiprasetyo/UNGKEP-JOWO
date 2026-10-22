@@ -74,7 +74,7 @@ def data_periode(start: date, end: date) -> pd.DataFrame:
 
 
 def tabel_html(df: pd.DataFrame, nama_semua: list[str], hari: list[date], me: str | None, admin: bool,
-               bisa_pesan: set[date], ada_menu: set[date], rev: set[tuple[str, date]], kode: str) -> str:
+               bisa_pesan: set[date], libur: dict[date, str], rev: set[tuple[str, date]], kode: str) -> str:
     """Tabel kasbon. Sel yang boleh diklik diberi data-c (dibaca skrip kecil di bawah)."""
     hari_ini = logic.today_wib()
     pivot = df.groupby(["pelanggan", "tgl"])["subtotal"].sum().to_dict() if not df.empty else {}
@@ -83,6 +83,11 @@ def tabel_html(df: pd.DataFrame, nama_semua: list[str], hari: list[date], me: st
         for p, g in df.groupby("pelanggan"):
             lunas[p] = bool((g["status_bayar"] == "Lunas").all())
 
+    lunas_hari = set()
+    if not df.empty:
+        for (p_, t_), g in df.groupby(["pelanggan", "tgl"]):
+            if (g["status_bayar"] == "Lunas").all():
+                lunas_hari.add((p_, t_))
     urut = sorted(nama_semua, key=lambda n: (n != me, n.lower()))
     bulan_runs: list[tuple[str, int]] = []
     for d in hari:
@@ -96,7 +101,7 @@ def tabel_html(df: pd.DataFrame, nama_semua: list[str], hari: list[date], me: st
         h.append(f'<th colspan="{n}" style="text-align:left"><span style="position:sticky;left:7.6rem;display:inline-block;padding-left:.2rem">{lab}</span></th>')
     h.append('<th class="tot" rowspan="2">TOTAL</th></tr><tr>')
     for d in hari:
-        h.append(f'<th class="{"hari-ini" if d == hari_ini else ""}">{d.day}</th>')
+        h.append(f'<th class="{"hari-ini" if d == hari_ini else ""}{" libur" if d in libur else ""}">{d.day}</th>')
     h.append("</tr></thead><tbody>")
     for n in urut:
         mine = n == me
@@ -106,14 +111,16 @@ def tabel_html(df: pd.DataFrame, nama_semua: list[str], hari: list[date], me: st
             v = pivot.get((n, d), 0)
             total += v
             boleh = mine or admin
-            klik = boleh and bool(v or (d in ada_menu if admin else d in bisa_pesan))
+            klik = boleh and bool(v or d in bisa_pesan)
             pending = (n, d) in rev
             cls = ("me " if mine else "") + ("ada" if v else "kosong") + (" hari-ini" if d == hari_ini else "") \
-                + (" klik" if klik else "") + (" rev" if pending else "")
+                + (" klik" if klik else "") + (" rev" if pending else "") + (" libur" if d in libur and not v else "")
             if v:
-                isi = ("⏳" if pending else "") + f"{int(v):,}".replace(",", ".")
+                isi = ("⏳" if pending else "") + f"{int(v):,}".replace(",", ".") + ('<span class="ok-hari">✓</span>' if (n, d) in lunas_hari else "")
             elif klik:
                 isi = '<span class="pill-pesan">PESAN</span>'
+            elif d in libur:
+                isi = "libur"
             else:
                 isi = "·"
             attr = f' data-c="d|{d.isoformat()}|{html.escape(n, quote=True)}"' if klik else ""
@@ -151,9 +158,12 @@ if me and not admin:
     if total_saya > 0 and st.button("Lihat tagihan / Bayar sekarang", key="btn_tagihan", width="stretch"):
         st.session_state["_open"] = ("tagihan", logic.kode_periode(start), me)
 
-# tanggal yang masih bisa dipesan: menu sudah ada dan belum lewat batas jam
-ada_menu = set(orders.tanggal_menu(store))
-tgl_buka = [d for d in sorted(ada_menu) if d >= hari_ini and logic.bisa_edit(d)][:3]
+# tombol PESAN hanya untuk satu tanggal: menu terdekat yang sudah diunggah admin (hari ini, atau besok setelah menu besok diunggah)
+libur = orders.libur_map(store)
+_buka = orders.tanggal_pesan_pelanggan(store)
+tgl_buka = [_buka] if _buka else []
+_buka_admin = orders.tanggal_pesan_admin(store)
+sel_kosong = {_buka_admin} if (admin and _buka_admin) else set(tgl_buka)
 kode = logic.kode_periode(start)
 _rv = store.all("Revisi")
 rev_set = {(r.pelanggan, pd.to_datetime(r.tanggal).date()) for r in _rv[_rv["status"] == "Menunggu"].itertuples()} if not _rv.empty else set()
@@ -176,17 +186,19 @@ if klik:
         else:
             tg = date.fromisoformat(a1)
             ada = bool(orders.items_pesanan(store, tg, a2))
-            if admin:
-                st.session_state["_open"] = ("rincian", a1, a2) if ada else ("pesan", a1, a2, True)
-            elif ada and logic.bisa_edit(tg):
-                st.session_state["_open"] = ("pesan", a1, a2, False)
-            elif ada:
+            if ada:
                 st.session_state["_open"] = ("rincian", a1, a2)
-            elif orders.bisa_pesan(store, tg):
+            elif admin and tg == _buka_admin:
+                st.session_state["_open"] = ("pesan", a1, a2, True)
+            elif not admin and tg == _buka:
                 st.session_state["_open"] = ("pesan", a1, a2, False)
 
-st.markdown(tabel_html(df, nama_semua, hari, me, admin, set(tgl_buka), ada_menu, rev_set, kode), unsafe_allow_html=True)
-st.caption("Ketuk **PESAN** untuk memesan · ketuk angka untuk melihat rincian · ketuk TOTAL untuk tagihan · ⏳ menunggu admin · ✓ lunas")
+st.markdown(tabel_html(df, nama_semua, hari, me, admin, sel_kosong, libur, rev_set, kode), unsafe_allow_html=True)
+st.caption("Ketuk **PESAN** untuk memesan · ketuk angka untuk rincian dan pembayaran hari itu · ketuk TOTAL untuk tagihan satu periode · ⏳ menunggu admin · ✓ lunas")
+_lib_depan = {d: k for d, k in libur.items() if d >= hari_ini}
+if _lib_depan:
+    st.markdown('<div class="kartu libur-info"><b>Libur pemesanan:</b> ' + ", ".join(
+        f"{ui.label_tgl(d)}" + (f" ({html.escape(k)})" if k else "") for d, k in sorted(_lib_depan.items())) + "</div>", unsafe_allow_html=True)
 _js = ("""<script>
 (function(){
  var P=window.parent,D=P.document;
@@ -217,7 +229,7 @@ if (spec := st.session_state.pop("_open", None)) and me:
     elif jenis == "tagihan":
         ui.dialog_tagihan(spec[1], spec[2], admin=admin)
     elif jenis == "bayar" and (spec[2] == me and not admin):
-        ui.dialog_bayar(spec[1], spec[2])
+        ui.dialog_bayar(spec[1], spec[2], spec[3] if len(spec) > 3 else None)
 
 # ---- cadangan: tombol biasa bila sel tabel tidak merespons di perangkatmu
 if me and not admin and tgl_buka:
@@ -227,7 +239,7 @@ if me and not admin and tgl_buka:
             if st.button(("Lihat / ubah pesanan " if ada else "PESAN ") + ui.label_tgl(d), key=f"pesan_{d}", width="stretch"):
                 ui.dialog_pesan(d.isoformat(), me)
 if me and not admin and not tgl_buka:
-    st.markdown('<div class="kartu"><small>Menu berikutnya belum diunggah admin. Pemesanan terbuka setelah menu tersedia.</small></div>',
+    st.markdown('<div class="kartu"><small>Tombol PESAN aktif setelah admin mengunggah menu berikutnya (biasanya setelah jam 12 siang).</small></div>',
                 unsafe_allow_html=True)
 
 # ---- Pesanan Hari Ini (semua orang bisa melihat; kontrol hanya untuk admin)

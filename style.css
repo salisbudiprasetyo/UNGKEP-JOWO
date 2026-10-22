@@ -121,3 +121,19 @@ table.rinci tr.gt td{font-weight:900;color:var(--brand-d);border-top:2px solid v
 .bank-logo{height:2.4rem;width:auto;border-radius:6px;}
 .st-key-rek [data-testid="stCodeCopyButton"],.st-key-rek button{opacity:1!important;visibility:visible!important;}
 .st-key-rek code{font-size:1.25rem!important;letter-spacing:.12em;font-weight:800;}
+
+/* ===== baris pembayaran di bawah total (rincian) ===== */
+.st-key-bar_bayar [data-testid="stHorizontalBlock"]{flex-direction:row!important;flex-wrap:nowrap!important;gap:.5rem!important;}
+.st-key-bar_bayar [data-testid="stColumn"]{min-width:0!important;}
+.bayar-stat{border-radius:12px;padding:.4rem .7rem;border:1px solid var(--line);background:#fff;line-height:1.25;}
+.bayar-stat small{display:block;color:var(--muted);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;font-weight:700;}
+.bayar-stat b{font-size:.9rem;}
+.bayar-stat.ok{background:#F0FDF4;border-color:#86EFAC;} .bayar-stat.ok b{color:#166534;}
+.bayar-stat.cek{background:#FEF9C3;border-color:#FDE047;} .bayar-stat.cek b{color:#92400E;}
+.bayar-stat.belum b{color:#B91C1C;}
+.ok-hari{color:var(--ok);font-weight:900;margin-left:.15rem;font-size:.72rem;}
+
+/* ===== libur pemesanan ===== */
+table.rekap th.libur{background:#E7E5E4;color:#78716C;}
+table.rekap td.libur{background:#F5F5F4;color:#A8A29E;font-size:.66rem;font-style:italic;}
+.libur-info{background:#FEF2F2;border-color:#FECACA;color:#991B1B;font-size:.86rem;}

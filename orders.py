@@ -40,9 +40,30 @@ def menu_hari(store, tgl: date) -> pd.DataFrame:
     return df.sort_values("_k", kind="stable").reset_index(drop=True)
 
 
+def libur_map(store) -> dict[date, str]:
+    """Tanggal libur pemesanan -> keterangan."""
+    df = store.all("Libur")
+    return {pd.to_datetime(r.tanggal).date(): r.keterangan for r in df.itertuples() if r.tanggal}
+
+
+def is_libur(store, tgl: date) -> bool:
+    return tgl in libur_map(store)
+
+
+def set_libur(store, tgl: date, ket: str = "") -> None:
+    store.replace_where("Libur", "tanggal", tgl.isoformat(),
+                        [{"tanggal": tgl.isoformat(), "keterangan": ket, "dibuat": logic.now_wib().isoformat(timespec="seconds")}])
+
+
+def hapus_libur(store, tgl: date) -> None:
+    store.replace_where("Libur", "tanggal", tgl.isoformat(), [])
+
+
 def tanggal_menu(store) -> list[date]:
+    """Tanggal yang menunya sudah diunggah dan tidak libur."""
+    libur = libur_map(store)
     ds = {pd.to_datetime(t).date() for t in store.all("MenuHarian")["tanggal"] if t}
-    return sorted(ds)
+    return sorted(d for d in ds if d not in libur)
 
 
 def tanggal_aktif(store) -> date | None:
@@ -54,6 +75,22 @@ def tanggal_aktif(store) -> date | None:
 def bisa_pesan(store, tgl: date, sekarang=None) -> bool:
     """Tombol PESAN aktif bila menu tanggal itu sudah ada dan belum lewat batas jam pada hari H."""
     return tgl in set(tanggal_menu(store)) and logic.bisa_edit(tgl, sekarang)
+
+
+def tanggal_pesan_pelanggan(store, sekarang=None) -> date | None:
+    """Satu-satunya tanggal yang tombol PESAN-nya aktif untuk pelanggan: menu terdekat (hari ini atau
+    yang berikutnya) yang sudah diunggah dan belum lewat batas jam."""
+    hari = (sekarang or logic.now_wib()).date()
+    for d in tanggal_menu(store):
+        if d >= hari and logic.bisa_edit(d, sekarang):
+            return d
+    return None
+
+
+def tanggal_pesan_admin(store, sekarang=None) -> date | None:
+    """Tanggal tempat admin bisa menambah pesanan atas nama pelanggan: menu terdekat mulai hari ini (tanpa batas jam)."""
+    hari = (sekarang or logic.now_wib()).date()
+    return next((d for d in tanggal_menu(store) if d >= hari), None)
 
 
 def _kasbon(store) -> pd.DataFrame:
@@ -142,6 +179,8 @@ def _susun_items(store, tgl: date, nama: str, pilihan: dict[str, int]) -> tuple[
 def simpan_pesanan(store, tgl: date, nama: str, pilihan: dict[str, int], catatan: str = "",
                    langsung: bool = False, sekarang=None) -> tuple[str | None, str]:
     """Kembalikan (galat, jenis). jenis: 'baru' | 'revisi' | 'langsung'."""
+    if is_libur(store, tgl):
+        return "Tanggal ini libur pemesanan.", ""
     if not langsung and not bisa_pesan(store, tgl, sekarang):
         return f"Waktu pemesanan untuk tanggal ini sudah ditutup (batas {logic.BATAS_TEKS} WIB).", ""
     items, err = _susun_items(store, tgl, nama, pilihan)

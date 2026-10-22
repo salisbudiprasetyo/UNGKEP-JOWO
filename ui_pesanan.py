@@ -158,6 +158,49 @@ def _rincian_tabel(items: list[dict]) -> str:
             f'<tr class="gt"><td colspan="3">TOTAL</td><td>{logic.rupiah(tot)}</td></tr></table>')
 
 
+def _muat_ulang(iso: str, nama: str) -> None:
+    """Segarkan seluruh halaman (tabel ikut berubah) lalu buka lagi rincian yang sama."""
+    st.session_state["_open"] = ("rincian", iso, nama)
+    st.rerun()
+
+
+def _blok_bayar(store, tgl: date, nama: str, admin: bool) -> None:
+    """Baris pembayaran tepat di bawah TOTAL: status + tombol (pelanggan: Bayar sekarang, admin: Konfirmasi lunas)."""
+    import payments
+    kode = logic.kode_periode(logic.periode_untuk(tgl)[0])
+    iso = tgl.isoformat()
+    t = payments.tagihan(store, nama, kode, iso)
+    cek = payments.menunggu_cek(store, nama, kode, iso)
+    if t["lunas"]:
+        stat, kls = "✓ LUNAS", "ok"
+    elif not cek.empty:
+        stat, kls = "⏳ MENUNGGU CEK ADMIN", "cek"
+    else:
+        stat, kls = "BELUM DIBAYAR", "belum"
+    with st.container(key="bar_bayar"):
+        c = st.columns([1.15, 1], gap="small", vertical_alignment="center")
+        c[0].markdown(f'<div class="bayar-stat {kls}"><small>Pembayaran</small><b>{stat}</b></div>', unsafe_allow_html=True)
+        if admin:
+            if t["lunas"]:
+                if c[1].button("Batalkan lunas", key=f"bl_{iso}_{nama}", width="stretch"):
+                    payments.batalkan_lunas(store, nama, kode, iso)
+                    _muat_ulang(iso, nama)
+            elif c[1].button("Konfirmasi lunas", key=f"kl_{iso}_{nama}", type="primary", width="stretch"):
+                payments.konfirmasi_lunas(store, nama, kode, tgl=iso)
+                _muat_ulang(iso, nama)
+        elif not t["lunas"] and cek.empty:
+            if c[1].button("Bayar sekarang", key=f"by_{iso}_{nama}", type="primary", width="stretch"):
+                st.session_state["_open"] = ("bayar", kode, nama, iso)
+                st.rerun()
+    if admin:
+        for p in cek.itertuples():
+            st.warning(f"Bukti transfer {logic.rupiah(float(p.jumlah))} dari pelanggan, tagihan {logic.rupiah(float(p.tagihan))}.")
+            _bukti_img(p.bukti)
+            if st.button("Tolak bukti transfer", key=f"tb_{iso}_{nama}", width="stretch"):
+                payments.tolak_pembayaran(store, nama, kode, iso)
+                _muat_ulang(iso, nama)
+
+
 @st.dialog("Rincian pesanan")
 def dialog_rincian(tgl_iso: str, nama: str, admin: bool = False):
     store = services.get_store()
@@ -172,6 +215,8 @@ def dialog_rincian(tgl_iso: str, nama: str, admin: bool = False):
         cat = orders.catatan_pesanan(store, tgl, nama)
         if cat:
             st.caption(f"📝 {cat}")
+    if items:
+        _blok_bayar(store, tgl, nama, admin)
     if rev:
         st.markdown('<div class="psn s-rev"><b>Menunggu konfirmasi admin</b> — perubahan yang diajukan:</div>', unsafe_allow_html=True)
         st.markdown(_rincian_tabel(rev["items"]) if rev["jenis"] != "batal" else '<div class="kosong-info">Permintaan batal pesanan</div>',
@@ -252,16 +297,16 @@ def dialog_tagihan(kode: str, nama: str, admin: bool = False):
 
 
 @st.dialog("Bayar kasbon")
-def dialog_bayar(kode: str, nama: str):
+def dialog_bayar(kode: str, nama: str, tgl_iso: str | None = None):
     import payments
     from pathlib import Path
     store = services.get_store()
-    t = payments.tagihan(store, nama, kode)
+    t = payments.tagihan(store, nama, kode, tgl_iso)
     if t["sisa"] <= 0:
         st.success("Tidak ada tagihan yang tersisa. Terima kasih!")
         return
     rek = rekening()
-    st.markdown(f'<div class="kartu"><small>Yang harus dibayar</small><div class="besar">{logic.rupiah(t["sisa"])}</div></div>',
+    st.markdown(f'<div class="kartu"><small>Yang harus dibayar{" · pesanan " + label_tgl(date.fromisoformat(tgl_iso)) if tgl_iso else ""}</small><div class="besar">{logic.rupiah(t["sisa"])}</div></div>',
                 unsafe_allow_html=True)
     st.markdown("**Transfer ke rekening:**")
     logo = Path(__file__).parent / "assets" / "bni.png"
@@ -275,13 +320,13 @@ def dialog_bayar(kode: str, nama: str):
         st.code(rek["nomor"], language=None)  # ikon salin ada di pojok kanan kotak
     st.markdown(f'<div class="bank-an">a.n. <b>{_esc(rek["nama"])}</b></div>', unsafe_allow_html=True)
     st.divider()
-    jumlah = st.number_input("Jumlah yang kamu transfer (Rp)", min_value=0, value=int(t["sisa"]), step=1000, key=f"bayar_jml_{kode}")
-    foto = st.file_uploader("Unggah foto bukti pembayaran", type=["jpg", "jpeg", "png", "webp"], key=f"bayar_foto_{kode}")
+    jumlah = st.number_input("Jumlah yang kamu transfer (Rp)", min_value=0, value=int(t["sisa"]), step=1000, key=f"bayar_jml_{kode}_{tgl_iso}")
+    foto = st.file_uploader("Unggah foto bukti pembayaran", type=["jpg", "jpeg", "png", "webp"], key=f"bayar_foto_{kode}_{tgl_iso}")
     if foto:
         st.image(foto, width=200)
     st.caption("Jika jumlahnya sama dengan tagihan, kasbon langsung berstatus lunas. Jika berbeda, bukti tetap tersimpan dan dicek admin.")
     if st.button("Kirim bukti pembayaran", type="primary", width="stretch"):
-        err, status = payments.kirim_pembayaran(store, nama, kode, float(jumlah), foto.getvalue() if foto else None)
+        err, status = payments.kirim_pembayaran(store, nama, kode, float(jumlah), foto.getvalue() if foto else None, tgl_iso)
         if err:
             st.error(err)
         else:

@@ -33,3 +33,8 @@ Admin > tab **Data awal** > centang > **Muat data awal**. Mengisi 36 pelanggan, 
 - **Batas ubah pesanan**: 10:45 WIB hari H (ubah di `logic.py`, baris `EDIT_BATAS_JAM`). Setelah itu rincian hanya bisa dilihat.
 - **Bayar sekarang**: menampilkan rekening (bawaan BNI 0258578828 a.n. NUR HABIBAH; ganti lewat secrets `rekening_bank`, `rekening_nomor`, `rekening_nama`), kolom jumlah transfer, dan unggah foto bukti. Jumlah sama dengan tagihan = lunas otomatis; berbeda = tersimpan dan dicek admin di tab **Pembayaran**.
 - **Logo bank**: taruh file `assets/bni.png` (logo resmi) agar tampil di jendela pembayaran. Tanpa file itu tampil lencana teks.
+
+## Aturan tombol PESAN, libur, dan pembayaran per hari
+- Tombol PESAN hanya muncul di satu tanggal: menu terdekat yang sudah diunggah admin (hari ini; besok baru aktif setelah menu besok diunggah). Tanggal yang sudah lewat tidak punya tombol PESAN, juga untuk admin.
+- Admin: tab **Libur** untuk menjadikan tanggal libur pemesanan (pilih tanggal, konfirmasi). Kolom tanggal itu bertanda “libur”.
+- Ketuk angka di sel mana pun untuk melihat rincian pesanan dan pembayaran hari itu: admin ada **Konfirmasi lunas**, pelanggan ada **Bayar sekarang**. Ketuk TOTAL untuk tagihan satu periode.
