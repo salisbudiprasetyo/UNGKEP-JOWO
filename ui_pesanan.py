@@ -42,6 +42,9 @@ def dialog_pesan(tgl_iso: str, nama: str, langsung: bool = False):
     awal = {i["item"]: i for i in rev["items"]} if rev and rev["jenis"] == "ubah" else lama  # isian awal form
 
     st.markdown(f"**{label_tgl(tgl)}** · atas nama **{_esc(nama)}**")
+    pengguna = services.user() or nama
+    if pengguna != nama:
+        st.caption(f"Kamu memesankan untuk {nama}. Tercatat dipesan oleh {pengguna}.")
     if ada and not langsung:
         st.info(f"Mengubah pesanan perlu persetujuan admin. Sebelum disetujui, pesanan lama yang berlaku. Batas ubah: {logic.BATAS_TEKS} WIB.")
     if rev:
@@ -136,7 +139,7 @@ def dialog_pesan(tgl_iso: str, nama: str, langsung: bool = False):
         else:
             label = ("Simpan perubahan" if langsung else "Kirim revisi") if ada else "Pesan sekarang"
             if st.button(label, type="primary", width="stretch", disabled=total <= 0):
-                err, kind = orders.simpan_pesanan(store, tgl, nama, pilihan, catatan.strip(), langsung=langsung)
+                err, kind = orders.simpan_pesanan(store, tgl, nama, pilihan, catatan.strip(), langsung=langsung, oleh=pengguna)
                 if err:
                     st.error(err)
                 else:
@@ -188,7 +191,7 @@ def _blok_bayar(store, tgl: date, nama: str, admin: bool) -> None:
             elif c[1].button("Konfirmasi lunas", key=f"kl_{iso}_{nama}", type="primary", width="stretch"):
                 payments.konfirmasi_lunas(store, nama, kode, tgl=iso)
                 _muat_ulang(iso, nama)
-        elif not t["lunas"] and cek.empty:
+        elif not t["lunas"] and cek.empty and nama == services.user():
             if c[1].button("Bayar sekarang", key=f"by_{iso}_{nama}", type="primary", width="stretch"):
                 st.session_state["_open"] = ("bayar", kode, nama, iso)
                 st.rerun()
@@ -212,6 +215,9 @@ def dialog_rincian(tgl_iso: str, nama: str, admin: bool = False):
         st.info("Tidak ada pesanan pada tanggal ini.")
     else:
         st.markdown(_rincian_tabel(items), unsafe_allow_html=True)
+        oleh = orders.pemesan(store, tgl, nama)
+        if oleh and oleh != nama:
+            st.caption(f"🧾 Dipesan oleh {oleh}")
         cat = orders.catatan_pesanan(store, tgl, nama)
         if cat:
             st.caption(f"📝 {cat}")
@@ -265,7 +271,8 @@ def dialog_tagihan(kode: str, nama: str, admin: bool = False):
     if not t["per_hari"]:
         st.info("Belum ada pembelian pada periode ini.")
         return
-    rows = "".join(f"<tr><td>{label_tgl(date.fromisoformat(d))}</td><td>{logic.rupiah(v)}</td></tr>" for d, v in t["per_hari"].items())
+    rows = "".join(f"<tr><td>{label_tgl(date.fromisoformat(d))}</td><td>{logic.rupiah(v['total'])}{' ✓' if v['lunas'] else ''}</td></tr>"
+                   for d, v in t["per_hari"].items())
     st.markdown(f'<table class="mini rinci"><tr><th>Tanggal</th><th>Total</th></tr>{rows}'
                 f'<tr class="gt"><td>TOTAL KASBON</td><td>{logic.rupiah(t["total"])}</td></tr></table>', unsafe_allow_html=True)
     stat = payments.status_periode(store, nama, kode)
@@ -418,6 +425,7 @@ def _kartu_html(o: dict, no: int, me: str | None) -> str:
             f'<div class="isi">{_esc(utama)}</div>'
             + (f'<div class="ekstra">{_esc(ekstra)}</div>' if ekstra else "")
             + (f'<div class="cat">📝 {_esc(o["catatan"])}</div>' if o["catatan"] else "")
+            + (f'<div class="oleh">🧾 dipesan oleh {_esc(o["oleh"])}</div>' if o.get("oleh") else "")
             + info + "</div>")
 
 

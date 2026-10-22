@@ -30,7 +30,7 @@ SCHEMA: dict[str, list[str]] = {
     "MenuHarian": ["tanggal", "menu_id", "kategori", "nama", "harga", "hpp", "batas_stok", "stok", "alternatif"],
     # REKAP KASBON: satu baris per item yang dipesan (siapa, apa, harga, tanggal, status bayar)
     "Kasbon": ["order_id", "tanggal", "periode", "pelanggan", "kategori", "item", "qty", "harga", "hpp",
-               "subtotal", "catatan", "status_pesanan", "status_bayar", "dibuat"],
+               "subtotal", "catatan", "status_pesanan", "status_bayar", "dibuat", "dipesan_oleh"],
     # revisi pesanan dari pelanggan yang menunggu konfirmasi admin (items = JSON daftar item baru)
     "Revisi": ["tanggal", "pelanggan", "jenis", "items", "catatan", "waktu", "status"],
     # pembayaran kasbon: bukti transfer disimpan sebagai foto kecil (base64) di kolom bukti

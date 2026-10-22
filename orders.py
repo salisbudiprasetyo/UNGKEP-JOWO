@@ -145,13 +145,13 @@ def revisi_menunggu(store, tgl: date, nama: str) -> dict | None:
 
 
 # ------------------------------------------------------------------ tulis pesanan
-def _baris(tgl: date, nama: str, items: list[dict], catatan: str, status: str, dibuat: str) -> list[dict]:
+def _baris(tgl: date, nama: str, items: list[dict], catatan: str, status: str, dibuat: str, oleh: str = "") -> list[dict]:
     kode = logic.kode_periode(logic.periode_untuk(tgl)[0])
     return [{
         "order_id": order_id(tgl, nama), "tanggal": tgl.isoformat(), "periode": kode, "pelanggan": nama,
         "kategori": it["kategori"], "item": it["item"], "qty": it["qty"], "harga": int(it["harga"]),
         "hpp": int(it.get("hpp", 0)), "subtotal": int(it["qty"] * it["harga"]), "catatan": catatan,
-        "status_pesanan": status, "status_bayar": "Belum", "dibuat": dibuat,
+        "status_pesanan": status, "status_bayar": "Belum", "dibuat": dibuat, "dipesan_oleh": oleh,
     } for it in items]
 
 
@@ -176,8 +176,15 @@ def _susun_items(store, tgl: date, nama: str, pilihan: dict[str, int]) -> tuple[
     return items, None
 
 
+def pemesan(store, tgl: date, nama: str) -> str:
+    """Siapa yang memasukkan pesanan ini (kosong pada data lama = pemilik akun sendiri)."""
+    df = pesanan_tgl(store, tgl)
+    df = df[df["pelanggan"] == nama]
+    return (str(df.iloc[0]["dipesan_oleh"]) or nama) if not df.empty else ""
+
+
 def simpan_pesanan(store, tgl: date, nama: str, pilihan: dict[str, int], catatan: str = "",
-                   langsung: bool = False, sekarang=None) -> tuple[str | None, str]:
+                   langsung: bool = False, sekarang=None, oleh: str | None = None) -> tuple[str | None, str]:
     """Kembalikan (galat, jenis). jenis: 'baru' | 'revisi' | 'langsung'."""
     if is_libur(store, tgl):
         return "Tanggal ini libur pemesanan.", ""
@@ -191,13 +198,16 @@ def simpan_pesanan(store, tgl: date, nama: str, pilihan: dict[str, int], catatan
     wkt = (sekarang or logic.now_wib()).isoformat(timespec="seconds")
     ada = bool(items_pesanan(store, tgl, nama))
     oid = order_id(tgl, nama)
+    oleh = oleh or nama
+    if ada and not langsung and oleh != nama and pemesan(store, tgl, nama) != oleh:
+        return f"{nama} sudah memesan sendiri. Minta dia mengubahnya lewat akunnya.", ""
     if not ada:
-        store.replace_where("Kasbon", "order_id", oid, _baris(tgl, nama, items, catatan, "Dipesan", wkt))
+        store.replace_where("Kasbon", "order_id", oid, _baris(tgl, nama, items, catatan, "Dipesan", wkt, oleh))
         kind = "baru"
     elif langsung:
         lama = pesanan_tgl(store, tgl)
         lama = lama[lama["pelanggan"] == nama]
-        rows = _baris(tgl, nama, items, catatan, "Disetujui", wkt)
+        rows = _baris(tgl, nama, items, catatan, "Disetujui", wkt, pemesan(store, tgl, nama) if not lama.empty else oleh)
         for r in rows:
             r["status_bayar"] = lama.iloc[0]["status_bayar"] if not lama.empty else "Belum"
         store.replace_where("Kasbon", "order_id", oid, rows)
@@ -244,7 +254,7 @@ def konfirmasi_revisi(store, tgl: date, nama: str) -> None:
         bayar = pesanan_tgl(store, tgl)
         bayar = bayar[bayar["pelanggan"] == nama]
         status_bayar = bayar.iloc[0]["status_bayar"] if not bayar.empty else "Belum"
-        rows = _baris(tgl, nama, rev["items"], rev["catatan"], "Disetujui", rev["waktu"])
+        rows = _baris(tgl, nama, rev["items"], rev["catatan"], "Disetujui", rev["waktu"], pemesan(store, tgl, nama))
         for r in rows:
             r["status_bayar"] = status_bayar
         store.replace_where("Kasbon", "order_id", oid, rows)
@@ -308,6 +318,7 @@ def daftar_pesanan(store, tgl: date) -> list[dict]:
             "kelompok": kelompok_dari(items), "utama": baris_utama, "jumlah": jumlah, "ekstra": ekstra,
             "seragam": bool(baris_utama) and len({i["qty"] for i in items if i["kategori"] in UTAMA}) == 1,
             "total": float(g["subtotal"].sum()), "dibuat": str(g.iloc[0]["dibuat"]),
+            "oleh": (str(g.iloc[0]["dipesan_oleh"]) if str(g.iloc[0]["dipesan_oleh"]) not in ("", nama) else ""),
         })
     hasil.sort(key=lambda o: (o["dibuat"], o["nama"].lower()))
     return hasil

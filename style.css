@@ -137,3 +137,4 @@ table.rinci tr.gt td{font-weight:900;color:var(--brand-d);border-top:2px solid v
 table.rekap th.libur{background:#E7E5E4;color:#78716C;}
 table.rekap td.libur{background:#F5F5F4;color:#A8A29E;font-size:.66rem;font-style:italic;}
 .libur-info{background:#FEF2F2;border-color:#FECACA;color:#991B1B;font-size:.86rem;}
+.psn .oleh{margin-top:.15rem;color:var(--muted);font-size:.78rem;}

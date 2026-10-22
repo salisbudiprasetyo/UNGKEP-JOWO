@@ -62,7 +62,11 @@ def muat(store, sandi_awal: str) -> dict:
             tgl, r["pelanggan"], [{"kategori": r["kategori"], "item": r["item"], "qty": r["qty"], "harga": r["harga"], "hpp": 0}],
             "", "Disetujui", f"{r['tanggal']}T08:00:00+07:00"))
         pesanan.add((r["tanggal"], r["pelanggan"]))
+    lunas_lama = {r.order_id for r in store.all("Kasbon").itertuples() if r.status_bayar == "Lunas"}
     for tgl_iso, rows in per_tanggal.items():
+        for r in rows:
+            if r["order_id"] in lunas_lama:
+                r["status_bayar"] = "Lunas"
         store.replace_where("Kasbon", "tanggal", tgl_iso, rows)
     for tgl_iso in sorted({t for t, _ in pesanan}):
         orders.simpan_record(store, date.fromisoformat(tgl_iso))

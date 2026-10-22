@@ -38,3 +38,7 @@ Admin > tab **Data awal** > centang > **Muat data awal**. Mengisi 36 pelanggan, 
 - Tombol PESAN hanya muncul di satu tanggal: menu terdekat yang sudah diunggah admin (hari ini; besok baru aktif setelah menu besok diunggah). Tanggal yang sudah lewat tidak punya tombol PESAN, juga untuk admin.
 - Admin: tab **Libur** untuk menjadikan tanggal libur pemesanan (pilih tanggal, konfirmasi). Kolom tanggal itu bertanda “libur”.
 - Ketuk angka di sel mana pun untuk melihat rincian pesanan dan pembayaran hari itu: admin ada **Konfirmasi lunas**, pelanggan ada **Bayar sekarang**. Ketuk TOTAL untuk tagihan satu periode.
+
+## Pesan atas nama teman & data awal otomatis
+- Pelanggan bisa memesankan untuk teman (kotak **Pesankan untuk teman** di bawah tabel). Kolom `dipesan_oleh` di sheet Kasbon mencatat siapa yang memasukkan pesanan. Pesanan teman yang sudah memesan sendiri tidak bisa diubah orang lain.
+- Saat database masih kosong (hanya akun admin), aplikasi memuat `data_awal.json` otomatis. Tombol “Muat data awal” di tab Data awal tetap ada dan tidak menghapus status lunas.

@@ -74,7 +74,8 @@ def data_periode(start: date, end: date) -> pd.DataFrame:
 
 
 def tabel_html(df: pd.DataFrame, nama_semua: list[str], hari: list[date], me: str | None, admin: bool,
-               bisa_pesan: set[date], libur: dict[date, str], rev: set[tuple[str, date]], kode: str) -> str:
+               bisa_pesan: set[date], libur: dict[date, str], rev: set[tuple[str, date]], kode: str,
+               punyaku: set[tuple[str, date]] = frozenset()) -> str:
     """Tabel kasbon. Sel yang boleh diklik diberi data-c (dibaca skrip kecil di bawah)."""
     hari_ini = logic.today_wib()
     pivot = df.groupby(["pelanggan", "tgl"])["subtotal"].sum().to_dict() if not df.empty else {}
@@ -110,7 +111,7 @@ def tabel_html(df: pd.DataFrame, nama_semua: list[str], hari: list[date], me: st
         for d in hari:
             v = pivot.get((n, d), 0)
             total += v
-            boleh = mine or admin
+            boleh = mine or admin or (n, d) in punyaku  # termasuk pesanan teman yang aku masukkan
             klik = boleh and bool(v or d in bisa_pesan)
             pending = (n, d) in rev
             cls = ("me " if mine else "") + ("ada" if v else "kosong") + (" hari-ini" if d == hari_ini else "") \
@@ -165,6 +166,9 @@ tgl_buka = [_buka] if _buka else []
 _buka_admin = orders.tanggal_pesan_admin(store)
 sel_kosong = {_buka_admin} if (admin and _buka_admin) else set(tgl_buka)
 kode = logic.kode_periode(start)
+punyaku: set[tuple[str, date]] = set()   # pesanan atas nama teman yang dimasukkan oleh pengguna ini
+if me and not admin and not df.empty and "dipesan_oleh" in df:
+    punyaku = {(r.pelanggan, r.tgl) for r in df[(df["dipesan_oleh"] == me) & (df["pelanggan"] != me)].itertuples()}
 _rv = store.all("Revisi")
 rev_set = {(r.pelanggan, pd.to_datetime(r.tanggal).date()) for r in _rv[_rv["status"] == "Menunggu"].itertuples()} if not _rv.empty else set()
 
@@ -180,7 +184,12 @@ klik = st.text_input("sel", key=f"cellsel_{n_klik}", label_visibility="collapsed
 if klik:
     st.session_state["_n_klik"] += 1
     jenis, a1, a2 = (klik.split("#")[0].split("|", 2) + ["", "", ""])[:3]
-    if me and (a2 == me or admin) and jenis in ("d", "t"):
+    _tg_ok = None
+    try:
+        _tg_ok = date.fromisoformat(a1) if jenis == "d" else None
+    except ValueError:
+        pass
+    if me and jenis in ("d", "t") and (a2 == me or admin or (jenis == "d" and _tg_ok and (a2, _tg_ok) in punyaku)):
         if jenis == "t":
             st.session_state["_open"] = ("tagihan", a1, a2)
         else:
@@ -193,12 +202,22 @@ if klik:
             elif not admin and tg == _buka:
                 st.session_state["_open"] = ("pesan", a1, a2, False)
 
-st.markdown(tabel_html(df, nama_semua, hari, me, admin, sel_kosong, libur, rev_set, kode), unsafe_allow_html=True)
+st.markdown(tabel_html(df, nama_semua, hari, me, admin, sel_kosong, libur, rev_set, kode, punyaku), unsafe_allow_html=True)
 st.caption("Ketuk **PESAN** untuk memesan · ketuk angka untuk rincian dan pembayaran hari itu · ketuk TOTAL untuk tagihan satu periode · ⏳ menunggu admin · ✓ lunas")
 _lib_depan = {d: k for d, k in libur.items() if d >= hari_ini}
 if _lib_depan:
     st.markdown('<div class="kartu libur-info"><b>Libur pemesanan:</b> ' + ", ".join(
         f"{ui.label_tgl(d)}" + (f" ({html.escape(k)})" if k else "") for d, k in sorted(_lib_depan.items())) + "</div>", unsafe_allow_html=True)
+if me and not admin and _buka:
+    with st.expander("Pesankan untuk teman"):
+        st.caption(f"Pesan {ui.label_tgl(_buka)} atas nama temanmu. Pesanan tercatat dipesan olehmu dan tagihannya tetap atas nama temanmu.")
+        _teman = st.selectbox("Nama teman", [n for n in nama_semua if n != me], index=None, placeholder="Ketik nama teman",
+                              key="pilih_teman")
+        if st.button("Buka form pesan", disabled=not _teman, key="buka_teman", width="stretch"):
+            if orders.items_pesanan(store, _buka, _teman) and orders.pemesan(store, _buka, _teman) != me:
+                st.error(f"{_teman} sudah memesan sendiri. Minta dia mengubahnya lewat akunnya.")
+            else:
+                st.session_state["_open"] = ("pesan", _buka.isoformat(), _teman, False)
 _js = ("""<script>
 (function(){
  var P=window.parent,D=P.document;

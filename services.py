@@ -27,7 +27,18 @@ class _Rahasia:
 def get_store():
     store = make_store(_Rahasia())
     _pastikan_admin(store)
+    _muat_awal_otomatis(store)
     return store
+
+
+def _muat_awal_otomatis(store) -> None:
+    """Database baru (hanya akun admin, belum ada pesanan): isi otomatis dari data_awal.json agar riwayat 20-21 Okt langsung ada."""
+    try:
+        import data_awal
+        if len(store.all("Pelanggan")) <= 1 and store.all("Kasbon").empty:
+            data_awal.muat(store, sandi_awal())
+    except Exception:
+        pass
 
 
 def _pastikan_admin(store) -> None:
