@@ -32,9 +32,15 @@ tab_harian, tab_libur, tab_bayar, tab_master, tab_minuman, tab_sandi, tab_pelang
 
 def _angka(x, default=0.0):
     try:
-        return float(x)
+        v = float(x)
     except (TypeError, ValueError):
         return default
+    return default if v != v or v in (float("inf"), float("-inf")) else v   # NaN (sel kosong) -> default
+
+
+def _teks(x) -> str:
+    """Teks dari sel tabel; sel kosong (None/NaN) jadi ''."""
+    return "" if x is None or (isinstance(x, float) and x != x) else str(x).strip()
 
 
 # ---------------------------------------------------------------- menu master
@@ -62,12 +68,12 @@ with tab_master:
     if st.button("Simpan menu master", type="primary", width="stretch"):
         rows, ada = [], set()
         for i, r in enumerate(hasil.dropna(subset=["nama"]).itertuples(), start=1):
-            nm = str(r.nama).strip()
+            nm = _teks(r.nama)
             if not nm or nm.lower() in ada:
                 continue
             ada.add(nm.lower())
-            rows.append({"id": f"m{i:03d}", "kategori": r.kategori or KAT_MASTER[0], "nama": nm,
-                         "harga": int(_angka(r.harga)), "hpp": int(_angka(r.hpp)), "aktif": "1" if r.aktif else "0"})
+            rows.append({"id": f"m{i:03d}", "kategori": _teks(r.kategori) or KAT_MASTER[0], "nama": nm,
+                         "harga": int(_angka(r.harga)), "hpp": int(_angka(r.hpp)), "aktif": "0" if r.aktif is False or r.aktif == 0 else "1"})
         store.replace_all("Menu", rows)
         st.success(f"{len(rows)} menu tersimpan.")
         st.rerun()
@@ -177,12 +183,12 @@ with tab_minuman:
     if st.button("Simpan minuman", type="primary", width="stretch"):
         rows, ada = [], set()
         for r in hasil_m.dropna(subset=["nama"]).itertuples():
-            nm, vr = str(r.nama).strip(), str(r.varian or "").strip()
+            nm, vr = _teks(r.nama), _teks(r.varian)
             if not nm or (nm.lower(), vr.lower()) in ada:
                 continue
             ada.add((nm.lower(), vr.lower()))
             rows.append({"nama": nm, "varian": vr, "harga": int(_angka(r.harga)), "hpp": int(_angka(r.hpp)),
-                         "ready": "1" if r.ready else "0"})
+                         "ready": "0" if r.ready is False or r.ready == 0 else "1"})
         store.replace_all("Minuman", rows)
         st.success(f"{len(rows)} minuman tersimpan. Unggah ulang menu harian agar perubahan ikut masuk.")
         st.rerun()
