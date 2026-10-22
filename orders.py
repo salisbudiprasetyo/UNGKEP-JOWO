@@ -33,7 +33,7 @@ def order_id(tgl: date, nama: str) -> str:
 # ------------------------------------------------------------------ menu & stok
 def menu_hari(store, tgl: date) -> pd.DataFrame:
     df = store.all("MenuHarian")
-    df = df[df["tanggal"] == tgl.isoformat()].copy()
+    df = df[df["tanggal"] == tgl.isoformat()].drop_duplicates("nama", keep="last").copy()   # nama ganda tidak boleh membuat pesanan rusak
     for c in ("harga", "hpp", "batas_stok", "stok"):
         df[c] = pd.to_numeric(df[c], errors="coerce")
     df["_k"] = df["kategori"].map(lambda k: KATEGORI.index(k) if k in KATEGORI else 99)
@@ -346,8 +346,22 @@ def selisih(lama: list[dict], baru: list[dict]) -> list[tuple[str, str, int]]:
 
 
 # ------------------------------------------------------------------ backup harian
-def simpan_record(store, tgl: date) -> None:
+import threading as _th
+
+_REC_LOCK = _th.Lock()
+
+
+def simpan_record(store, tgl: date, tunggu: bool = False) -> None:
     """Tulis ulang snapshot 'Pesanan Hari Ini' untuk tanggal tsb ke sheet RecordHarian (backup, satu sheet per periode)."""
+    if not tunggu:   # cadangan tidak perlu ditunggu pelanggan: tulis di latar belakang
+        import threading
+        threading.Thread(target=simpan_record, args=(store, tgl, True), daemon=True).start()
+        return
+    with _REC_LOCK:   # satu per satu; gambaran dibuat setelah giliran tiba sehingga selalu yang terbaru
+        _tulis_record(store, tgl)
+
+
+def _tulis_record(store, tgl: date) -> None:
     kode = logic.kode_periode(logic.periode_untuk(tgl)[0])
     wkt = logic.now_wib().isoformat(timespec="seconds")
     rows = []

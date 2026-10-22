@@ -69,5 +69,5 @@ def muat(store, sandi_awal: str) -> dict:
                 r["status_bayar"] = "Lunas"
         store.replace_where("Kasbon", "tanggal", tgl_iso, rows)
     for tgl_iso in sorted({t for t, _ in pesanan}):
-        orders.simpan_record(store, date.fromisoformat(tgl_iso))
+        orders.simpan_record(store, date.fromisoformat(tgl_iso), tunggu=True)
     return {"pelanggan_baru": len(baru), "pesanan": len(pesanan), "tanggal": sorted({t for t, _ in pesanan})}

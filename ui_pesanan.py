@@ -488,7 +488,8 @@ def render_hari_ini(store, tgl: date, me: str | None, admin: bool):
                 st.markdown(_kartu_html(o, no, me), unsafe_allow_html=True)
                 if me and o["nama"] == me and logic.bisa_edit(tgl):
                     if st.button("Ubah / batalkan pesanan saya", key=f"ubahku_{k}_{no}", width="stretch"):
-                        dialog_pesan(tgl.isoformat(), me)
+                        st.session_state["_open"] = ("pesan", tgl.isoformat(), me, False)
+                        st.rerun()
         st.markdown(_rekap_html(grup), unsafe_allow_html=True)
     st.markdown(_rekap_akhir_html(semua, admin), unsafe_allow_html=True)
 
@@ -502,7 +503,8 @@ def _aksi_admin(store, tgl: date, o: dict, kunci: str):
                 orders.konfirmasi_revisi(store, tgl, nama)
                 st.rerun()
             if c2.button("Lihat pesanan sebelumnya", key=f"lh_{kunci}", width="stretch"):
-                dialog_revisi(tgl.isoformat(), nama)
+                st.session_state["_open"] = ("revisi", tgl.isoformat(), nama)
+                st.rerun()
         else:
             c1, c2 = st.columns(2)
             bungkus = o["status"] == "Dibungkus"
@@ -511,4 +513,5 @@ def _aksi_admin(store, tgl: date, o: dict, kunci: str):
                 orders.set_dibungkus(store, tgl, nama, not bungkus)
                 st.rerun()
             if c2.button("Ubah", key=f"ub_{kunci}", width="stretch"):
-                dialog_pesan(tgl.isoformat(), nama, langsung=True)
+                st.session_state["_open"] = ("pesan", tgl.isoformat(), nama, True)
+                st.rerun()

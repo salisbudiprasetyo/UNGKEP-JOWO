@@ -42,3 +42,8 @@ Admin > tab **Data awal** > centang > **Muat data awal**. Mengisi 36 pelanggan, 
 ## Pesan atas nama teman & data awal otomatis
 - Pelanggan bisa memesankan untuk teman (kotak **Pesankan untuk teman** di bawah tabel). Kolom `dipesan_oleh` di sheet Kasbon mencatat siapa yang memasukkan pesanan. Pesanan teman yang sudah memesan sendiri tidak bisa diubah orang lain.
 - Saat database masih kosong (hanya akun admin), aplikasi memuat `data_awal.json` otomatis. Tombol “Muat data awal” di tab Data awal tetap ada dan tidak menghapus status lunas.
+
+## Kecepatan & pembaruan otomatis
+- Semua sesi memakai satu cache di memori server. Membaca tidak memanggil Google; menulis memperbarui cache seketika (satu panggilan API per tulisan). Cache disegarkan diam-diam di latar belakang tiap ±60 detik agar suntingan manual di Google Sheet ikut terbaca.
+- Tabel kasbon, kartu total, dan “Pesanan Hari Ini” menyegarkan diri otomatis: tiap 2 detik di akun admin, tiap 8 detik di akun pelanggan. Pesanan baru langsung muncul tanpa muat ulang.
+- Cadangan RecordHarian ditulis di latar belakang supaya tombol “Pesan sekarang” tidak menunggu.

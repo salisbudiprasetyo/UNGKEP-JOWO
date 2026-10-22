@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import html
+import json
 from datetime import date
+from types import SimpleNamespace
 
 import pandas as pd
 import streamlit as st
@@ -148,35 +150,51 @@ labels = [logic.label_periode(a, b) + (" (berjalan)" if i == 0 else "") for i, (
 pilih = st.selectbox("Periode", labels, index=0, label_visibility="collapsed")
 start, end = opsi[labels.index(pilih)]
 hari = logic.daftar_hari(start, end)
-df = data_periode(start, end)
+JEDA = "2s" if admin else "8s"   # seberapa sering bagian "hidup" menyegarkan diri (membaca cache memori, bukan Google)
+kode = logic.kode_periode(start)
 
-if me and not admin:
-    total_saya = float(df.loc[df["pelanggan"] == me, "subtotal"].sum()) if not df.empty else 0.0
+
+def turunan(cari_: str = "") -> SimpleNamespace:
+    """Semua data turunan untuk tampilan; dipakai sidang utama dan bagian yang menyegarkan diri."""
+    df_ = data_periode(start, end)
+    buka = orders.tanggal_pesan_pelanggan(store)        # tombol PESAN hanya satu tanggal
+    buka_admin = orders.tanggal_pesan_admin(store)
+    punya = set()                                       # pesanan teman yang dimasukkan pengguna ini
+    if me and not admin and not df_.empty and "dipesan_oleh" in df_:
+        punya = {(r.pelanggan, r.tgl) for r in df_[(df_["dipesan_oleh"] == me) & (df_["pelanggan"] != me)].itertuples()}
+    rv = store.all("Revisi")
+    rev_ = {(r.pelanggan, pd.to_datetime(r.tanggal).date()) for r in rv[rv["status"] == "Menunggu"].itertuples()} if not rv.empty else set()
+    akun = store.all("Pelanggan")
+    nama = sorted(akun[(akun["aktif"] != "0") & (akun["role"] != "admin")]["nama"].tolist(), key=str.lower)
+    semua = list(nama)
+    if cari_:
+        nama = [n for n in nama if cari_.lower() in n.lower() or n == me]
+    return SimpleNamespace(df=df_, libur=orders.libur_map(store), buka=buka, buka_admin=buka_admin, punyaku=punya, rev=rev_,
+                           nama=nama, semua=semua, sel_kosong=({buka_admin} if (admin and buka_admin) else ({buka} if buka else set())))
+
+
+D = turunan()
+_buka, _buka_admin, punyaku, nama_semua = D.buka, D.buka_admin, D.punyaku, D.semua
+tgl_buka = [_buka] if _buka else []
+
+
+@st.fragment(run_every=JEDA)
+def kartu_live():
+    df_ = data_periode(start, end)
+    total_saya = float(df_.loc[df_["pelanggan"] == me, "subtotal"].sum()) if not df_.empty else 0.0
     st.markdown(
         f'<div class="kartu"><small>Halo, <b>{html.escape(me)}</b> · kasbon periode ini</small>'
         f'<div class="besar">{logic.rupiah(total_saya)}</div>'
         f'<small>Dibayar tanggal {logic.CUTOFF_HARI} {logic.BULAN[end.month]} {end.year}</small></div>', unsafe_allow_html=True)
     if total_saya > 0 and st.button("Lihat tagihan / Bayar sekarang", key="btn_tagihan", width="stretch"):
-        st.session_state["_open"] = ("tagihan", logic.kode_periode(start), me)
+        st.session_state["_open"] = ("tagihan", kode, me)
+        st.rerun()
 
-# tombol PESAN hanya untuk satu tanggal: menu terdekat yang sudah diunggah admin (hari ini, atau besok setelah menu besok diunggah)
-libur = orders.libur_map(store)
-_buka = orders.tanggal_pesan_pelanggan(store)
-tgl_buka = [_buka] if _buka else []
-_buka_admin = orders.tanggal_pesan_admin(store)
-sel_kosong = {_buka_admin} if (admin and _buka_admin) else set(tgl_buka)
-kode = logic.kode_periode(start)
-punyaku: set[tuple[str, date]] = set()   # pesanan atas nama teman yang dimasukkan oleh pengguna ini
-if me and not admin and not df.empty and "dipesan_oleh" in df:
-    punyaku = {(r.pelanggan, r.tgl) for r in df[(df["dipesan_oleh"] == me) & (df["pelanggan"] != me)].itertuples()}
-_rv = store.all("Revisi")
-rev_set = {(r.pelanggan, pd.to_datetime(r.tanggal).date()) for r in _rv[_rv["status"] == "Menunggu"].itertuples()} if not _rv.empty else set()
 
-_akun = store.all("Pelanggan")
-nama_semua = sorted(_akun[(_akun["aktif"] != "0") & (_akun["role"] != "admin")]["nama"].tolist(), key=str.lower)
+if me and not admin:
+    kartu_live()
+
 cari = st.text_input("Cari nama", placeholder="Cari nama di tabel…", label_visibility="collapsed") if len(nama_semua) > 12 else ""
-if cari:
-    nama_semua = [n for n in nama_semua if cari.lower() in n.lower() or n == me]
 
 # kotak tersembunyi: skrip kecil mengisinya saat sel tabel diketuk (kuncinya berganti tiap dipakai)
 n_klik = st.session_state.setdefault("_n_klik", 0)
@@ -202,37 +220,29 @@ if klik:
             elif not admin and tg == _buka:
                 st.session_state["_open"] = ("pesan", a1, a2, False)
 
-st.markdown(tabel_html(df, nama_semua, hari, me, admin, sel_kosong, libur, rev_set, kode, punyaku), unsafe_allow_html=True)
-st.caption("Ketuk **PESAN** untuk memesan · ketuk angka untuk rincian dan pembayaran hari itu · ketuk TOTAL untuk tagihan satu periode · ⏳ menunggu admin · ✓ lunas")
-_lib_depan = {d: k for d, k in libur.items() if d >= hari_ini}
-if _lib_depan:
-    st.markdown('<div class="kartu libur-info"><b>Libur pemesanan:</b> ' + ", ".join(
-        f"{ui.label_tgl(d)}" + (f" ({html.escape(k)})" if k else "") for d, k in sorted(_lib_depan.items())) + "</div>", unsafe_allow_html=True)
-if me and not admin and _buka:
-    with st.expander("Pesankan untuk teman"):
-        st.caption(f"Pesan {ui.label_tgl(_buka)} atas nama temanmu. Pesanan tercatat dipesan olehmu dan tagihannya tetap atas nama temanmu.")
-        _teman = st.selectbox("Nama teman", [n for n in nama_semua if n != me], index=None, placeholder="Ketik nama teman",
-                              key="pilih_teman")
-        if st.button("Buka form pesan", disabled=not _teman, key="buka_teman", width="stretch"):
-            if orders.items_pesanan(store, _buka, _teman) and orders.pemesan(store, _buka, _teman) != me:
-                st.error(f"{_teman} sudah memesan sendiri. Minta dia mengubahnya lewat akunnya.")
-            else:
-                st.session_state["_open"] = ("pesan", _buka.isoformat(), _teman, False)
+@st.fragment(run_every=JEDA)
+def tabel_live():
+    d = turunan(cari)
+    st.markdown(tabel_html(d.df, d.nama, hari, me, admin, d.sel_kosong, d.libur, d.rev, kode, d.punyaku), unsafe_allow_html=True)
+    st.caption("Ketuk **PESAN** untuk memesan · ketuk angka untuk rincian dan pembayaran hari itu · ketuk TOTAL untuk tagihan satu periode · ⏳ menunggu admin · ✓ lunas")
+    lib = {t: k for t, k in d.libur.items() if t >= hari_ini}
+    if lib:
+        st.markdown('<div class="kartu libur-info"><b>Libur pemesanan:</b> ' + ", ".join(
+            f"{ui.label_tgl(t)}" + (f" ({html.escape(k)})" if k else "") for t, k in sorted(lib.items())) + "</div>", unsafe_allow_html=True)
+
+
+tabel_live()
+_INJ = "(function(){\n var last=0;\n document.addEventListener('click',function(e){var td=e.target.closest&&e.target.closest('[data-c]');if(!td)return;\n  var b=document.querySelector('[class*=st-key-cellsel] input');if(!b)return;\n  var st=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;b.focus({preventScroll:true});\n  st.call(b,td.getAttribute('data-c')+'#'+Date.now());b.dispatchEvent(new Event('input',{bubbles:true}));b.blur();},true);\n document.addEventListener('scroll',function(e){var t=e.target;if(t&&t.classList&&t.classList.contains('rekap-wrap')){last=t.scrollLeft;window.__ujLast=last;}},true);\n new MutationObserver(function(){var w=document.querySelector('.rekap-wrap');if(w&&!w.__uj){w.__uj=1;if(last>0)w.scrollLeft=last;}}).observe(document.body,{childList:true,subtree:true});\n})();"
 _js = ("""<script>
 (function(){
  var P=window.parent,D=P.document;
- if(!P.__ujKlik){
-  var s=D.createElement('script');
-  s.textContent="(function(){document.addEventListener('click',function(e){var td=e.target.closest&&e.target.closest('[data-c]');if(!td)return;"+
-  "var b=document.querySelector('[class*=st-key-cellsel] input');if(!b)return;"+
-  "var st=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;b.focus({preventScroll:true});"+
-  "st.call(b,td.getAttribute('data-c')+'#'+Date.now());b.dispatchEvent(new Event('input',{bubbles:true}));b.blur();},true);})();";
-  D.head.appendChild(s); P.__ujKlik=true;
+ if(!P.__ujKlik2){
+  var s=D.createElement('script'); s.textContent=%INJ%; D.head.appendChild(s); P.__ujKlik2=true;
  }
  var n=0,t=setInterval(function(){try{var w=D.querySelector('.rekap-wrap'),h=D.querySelector('th.hari-ini');
- if(w&&h){w.scrollLeft=Math.max(0,h.offsetLeft-215);clearInterval(t);}}catch(e){clearInterval(t);} if(++n>20)clearInterval(t);},150);
+ if(w&&h){if(!(P.__ujLast>0))w.scrollLeft=Math.max(0,h.offsetLeft-215);clearInterval(t);}}catch(e){clearInterval(t);} if(++n>20)clearInterval(t);},150);
 })();
-</script>""")
+</script>""").replace("%INJ%", json.dumps(_INJ))
 if hasattr(st, "iframe"):          # components.html dihapus di Streamlit baru
     st.iframe(_js, height=1)
 else:
@@ -243,6 +253,8 @@ if (spec := st.session_state.pop("_open", None)) and me:
     jenis = spec[0]
     if jenis == "pesan":
         ui.dialog_pesan(spec[1], spec[2], langsung=bool(spec[3]) and admin)
+    elif jenis == "revisi" and admin:
+        ui.dialog_revisi(spec[1], spec[2])
     elif jenis == "rincian":
         ui.dialog_rincian(spec[1], spec[2], admin=admin)
     elif jenis == "tagihan":
@@ -262,16 +274,22 @@ if me and not admin and not tgl_buka:
                 unsafe_allow_html=True)
 
 # ---- Pesanan Hari Ini (semua orang bisa melihat; kontrol hanya untuk admin)
+@st.fragment(run_every=JEDA)
+def hari_ini_live():
+    tg = orders.tanggal_aktif(store)
+    if tg:
+        ui.render_hari_ini(store, tg, me, admin)
+    else:
+        st.markdown('<div class="kartu"><small>Belum ada menu. Admin belum mengunggah menu.</small></div>', unsafe_allow_html=True)
+
+
+hari_ini_live()
 tgl_aktif = orders.tanggal_aktif(store)
-if tgl_aktif:
-    ui.render_hari_ini(store, tgl_aktif, me, admin)
-    if admin:
-        with st.expander("Tambah pesanan atas nama pelanggan"):
-            n = st.selectbox("Pelanggan", nama_semua, index=None, placeholder="Ketik nama", key="admin_tambah_nama")
-            if st.button("Buka form pesan", disabled=not n, width="stretch"):
-                ui.dialog_pesan(tgl_aktif.isoformat(), n, langsung=True)
-else:
-    st.markdown('<div class="kartu"><small>Belum ada menu. Admin belum mengunggah menu.</small></div>', unsafe_allow_html=True)
+if tgl_aktif and admin:
+    with st.expander("Tambah pesanan atas nama pelanggan"):
+        n = st.selectbox("Pelanggan", nama_semua, index=None, placeholder="Ketik nama", key="admin_tambah_nama")
+        if st.button("Buka form pesan", disabled=not n, width="stretch"):
+            ui.dialog_pesan(tgl_aktif.isoformat(), n, langsung=True)
 
 # ---- akun
 if me:
