@@ -87,10 +87,14 @@ def tabel_html(df: pd.DataFrame, nama_semua: list[str], hari: list[date], me: st
             lunas[p] = bool((g["status_bayar"] == "Lunas").all())
 
     lunas_hari = set()
+    sisa_hari = {}   # hari yang baru sebagian dibayar -> sisa
     if not df.empty:
         for (p_, t_), g in df.groupby(["pelanggan", "tgl"]):
-            if (g["status_bayar"] == "Lunas").all():
+            ok_ = g["status_bayar"] == "Lunas"
+            if ok_.all():
                 lunas_hari.add((p_, t_))
+            elif ok_.any():
+                sisa_hari[(p_, t_)] = float(g.loc[~ok_, "subtotal"].sum())
     urut = sorted(nama_semua, key=lambda n: (n != me, n.lower()))
     bulan_runs: list[tuple[str, int]] = []
     for d in hari:
@@ -121,6 +125,9 @@ def tabel_html(df: pd.DataFrame, nama_semua: list[str], hari: list[date], me: st
             if v and (n, d) in lunas_hari and not pending:
                 isi = "LUNAS"
                 cls += " lunas-sel"
+            elif v and (n, d) in sisa_hari:
+                isi = f'<small>sisa</small>{int(sisa_hari[(n, d)]):,}'.replace(",", ".")
+                cls += " lunas-sbg"
             elif v:
                 isi = ("⏳" if pending else "") + f"{int(v):,}".replace(",", ".")
             elif klik:
@@ -276,7 +283,7 @@ if (spec := st.session_state.pop("_open", None)) and me:
     elif jenis == "tagihan":
         ui.dialog_tagihan(spec[1], spec[2], admin=admin)
     elif jenis == "bayar" and (spec[2] == me and not admin):
-        ui.dialog_bayar(spec[1], spec[2], spec[3] if len(spec) > 3 else None)
+        ui.dialog_bayar(spec[1], spec[2], spec[3] if len(spec) > 3 else None, spec[4] if len(spec) > 4 else None)
 
 # ---- cadangan: tombol biasa bila sel tabel tidak merespons di perangkatmu
 if me and not admin and tgl_buka:

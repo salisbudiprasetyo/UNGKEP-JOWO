@@ -53,3 +53,9 @@ Unggah `.xlsx` berformat REKAP_PEMBELIAN (A1 "TANGGAL", baris 2 tanggal, kolom N
 
 ## Tampilan lunas
 Sel tanggal yang sudah lunas berwarna hijau muda bertuliskan LUNAS (tetap bisa diklik). Kolom total hijau hanya bila semua tagihan periode lunas.
+
+## Bayar sebagian (per item)
+Di jendela rincian harian, centang item yang dibayar (admin: "Konfirmasi lunas", pelanggan: "Bayar sekarang"). Item yang tidak dicentang tetap kasbon. Hari yang baru sebagian lunas tampil hijau pucat dengan tulisan "sisa".
+
+## Menu master vs menu harian
+Mengubah Menu master tidak mengubah menu harian yang sudah diunggah. Setelah mengubah, buka tab Menu harian dan tekan "Unggah menu".

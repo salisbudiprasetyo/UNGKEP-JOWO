@@ -23,18 +23,21 @@ def _kasbon(store) -> pd.DataFrame:
     return df[df["status_pesanan"] != "Batal"]
 
 
-def tagihan(store, nama: str, kode: str, tanggal: str | None = None) -> dict:
+def tagihan(store, nama: str, kode: str, tanggal: str | None = None, pilih: list[str] | None = None) -> dict:
     """Ringkasan kasbon satu pelanggan pada satu periode (atau satu tanggal bila `tanggal` diisi):
     total, sisa (belum lunas), dan rincian per tanggal dengan status lunas."""
     df = _kasbon(store)
     df = df[(df["pelanggan"] == nama) & (df["periode"] == kode)]
     if tanggal:
         df = df[df["tanggal"] == tanggal]
+    if pilih is not None:   # hanya item yang dicentang
+        df = df[df["item"].isin(pilih)]
     total = float(df["subtotal"].sum())
     sisa = float(df.loc[df["status_bayar"] != "Lunas", "subtotal"].sum())
     per_hari = {}
     for tgl, g in df.groupby("tanggal"):
-        per_hari[tgl] = {"total": float(g["subtotal"].sum()), "lunas": bool((g["status_bayar"] == "Lunas").all())}
+        per_hari[tgl] = {"total": float(g["subtotal"].sum()), "lunas": bool((g["status_bayar"] == "Lunas").all()),
+                         "sisa": float(g.loc[g["status_bayar"] != "Lunas", "subtotal"].sum())}
     return {"total": total, "sisa": sisa, "lunas": total > 0 and sisa == 0, "per_hari": dict(sorted(per_hari.items()))}
 
 
@@ -82,17 +85,50 @@ def _cocok(nama: str, kode: str, tgl: str | None) -> dict:
     return m
 
 
-def _tandai_lunas(store, nama: str, kode: str, tgl: str | None = None) -> None:
-    store.update_where("Kasbon", _cocok(nama, kode, tgl), {"status_bayar": "Lunas"})
+def item_belum_lunas(store, nama: str, kode: str, tgl: str) -> list[dict]:
+    """Item pada satu tanggal beserta status lunasnya: [{item, qty, subtotal, lunas}]."""
+    df = _kasbon(store)
+    df = df[(df["pelanggan"] == nama) & (df["periode"] == kode) & (df["tanggal"] == tgl)]
+    return [{"item": r.item, "qty": int(float(r.qty or 0)), "subtotal": float(r.subtotal), "lunas": r.status_bayar == "Lunas"}
+            for r in df.itertuples()]
+
+
+def _tandai_lunas(store, nama: str, kode: str, tgl: str | None = None, pilih: list[str] | None = None) -> None:
+    if pilih is None:
+        store.update_where("Kasbon", _cocok(nama, kode, tgl), {"status_bayar": "Lunas"})
+        return
+    for it in pilih:
+        store.update_where("Kasbon", {**_cocok(nama, kode, tgl), "item": it}, {"status_bayar": "Lunas"})
+
+
+_PFX = "ITEM:"
+
+
+def _catat_item(pilih: list[str] | None) -> str:
+    return _PFX + "|".join(pilih) if pilih is not None else ""
+
+
+def _item_dari_cek(store, nama: str, kode: str, tgl: str | None) -> list[str] | None:
+    """Item yang tercatat pada bukti transfer yang menunggu cek (None = seluruh tagihan)."""
+    df = daftar(store, nama, kode)
+    df = df[(df["status"] == CEK) & (df["tanggal"] == (tgl or ""))]
+    hasil: list[str] = []
+    for c in df["catatan"]:
+        if not str(c).startswith(_PFX):
+            return None
+        hasil += [x for x in str(c)[len(_PFX):].split("|") if x]
+    return hasil if len(df) else None
 
 
 def kirim_pembayaran(store, nama: str, kode: str, jumlah: float, foto: bytes | None,
-                     tgl: str | None = None) -> tuple[str | None, str]:
+                     tgl: str | None = None, pilih: list[str] | None = None) -> tuple[str | None, str]:
     """Pelanggan mengirim bukti transfer. Bila nominal sama dengan sisa tagihan -> lunas otomatis,
     selain itu tetap disimpan dan menunggu pengecekan admin. Kembalikan (galat, status)."""
-    t = tagihan(store, nama, kode, tgl)
+    t = tagihan(store, nama, kode, tgl, pilih)
     if t["sisa"] <= 0:
         return "Tidak ada tagihan yang tersisa pada periode ini.", ""
+    if pilih is not None:   # hanya item yang masih belum lunas
+        pilih = [i["item"] for i in item_belum_lunas(store, nama, kode, tgl or "") if not i["lunas"] and i["item"] in pilih]
     if jumlah <= 0:
         return "Isi jumlah yang kamu transfer.", ""
     if not foto:
@@ -107,25 +143,30 @@ def kirim_pembayaran(store, nama: str, kode: str, jumlah: float, foto: bytes | N
     store.append("Pembayaran", [{
         "id": _id(), "waktu": logic.now_wib().isoformat(timespec="seconds"), "pelanggan": nama, "periode": kode,
         "jumlah": int(round(jumlah)), "tagihan": int(round(t["sisa"])), "metode": "Transfer BNI",
-        "status": status, "bukti": bukti, "catatan": "", "tanggal": tgl or "",
+        "status": status, "bukti": bukti, "catatan": _catat_item(pilih), "tanggal": tgl or "",
     }])
     if status == LUNAS_OTO:
-        _tandai_lunas(store, nama, kode, tgl)
+        _tandai_lunas(store, nama, kode, tgl, pilih)
     return None, status
 
 
-def konfirmasi_lunas(store, nama: str, kode: str, tgl: str | None = None, metode: str = "Tunai") -> None:
-    """Admin menandai kasbon (satu tanggal, atau satu periode penuh) lunas. Bukti yang menunggu cek ikut disetujui."""
-    t = tagihan(store, nama, kode, tgl)
+def konfirmasi_lunas(store, nama: str, kode: str, tgl: str | None = None, metode: str = "Tunai",
+                     pilih: list[str] | None = None) -> None:
+    """Admin menandai kasbon (satu tanggal, atau satu periode penuh) lunas. Bukti yang menunggu cek ikut disetujui.
+    `pilih` = hanya item itu yang lunas; bila kosong dan bukti transfer mencatat item tertentu, item itulah yang lunas."""
+    if pilih is None:
+        pilih = _item_dari_cek(store, nama, kode, tgl)
+    t = tagihan(store, nama, kode, tgl, pilih)
     ada = store.update_where("Pembayaran", {"pelanggan": nama, "periode": kode, "status": CEK, "tanggal": tgl or ""},
                              {"status": LUNAS})
     if not ada and t["sisa"] > 0:
         store.append("Pembayaran", [{
             "id": _id(), "waktu": logic.now_wib().isoformat(timespec="seconds"), "pelanggan": nama, "periode": kode,
             "jumlah": int(round(t["sisa"])), "tagihan": int(round(t["sisa"])), "metode": metode,
-            "status": LUNAS, "bukti": "", "catatan": "Dikonfirmasi admin", "tanggal": tgl or "",
+            "status": LUNAS, "bukti": "", "catatan": _catat_item(pilih) if pilih is not None else "Dikonfirmasi admin",
+            "tanggal": tgl or "",
         }])
-    _tandai_lunas(store, nama, kode, tgl)
+    _tandai_lunas(store, nama, kode, tgl, pilih)
 
 
 def tolak_pembayaran(store, nama: str, kode: str, tgl: str | None = None) -> None:

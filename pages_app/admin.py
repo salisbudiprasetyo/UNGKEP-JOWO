@@ -65,6 +65,8 @@ with tab_master:
             "hpp": st.column_config.NumberColumn("Modal (HPP)", min_value=0, step=500, format="%d"),
             "aktif": st.column_config.CheckboxColumn("Aktif"),
         })
+    if (_mm := st.session_state.pop("_master_ok", None)):
+        st.success(_mm)
     if st.button("Simpan menu master", type="primary", width="stretch"):
         rows, ada = [], set()
         for i, r in enumerate(hasil.dropna(subset=["nama"]).itertuples(), start=1):
@@ -75,7 +77,7 @@ with tab_master:
             rows.append({"id": f"m{i:03d}", "kategori": _teks(r.kategori) or KAT_MASTER[0], "nama": nm,
                          "harga": int(_angka(r.harga)), "hpp": int(_angka(r.hpp)), "aktif": "0" if r.aktif is False or r.aktif == 0 else "1"})
         store.replace_all("Menu", rows)
-        st.success(f"{len(rows)} menu tersimpan.")
+        st.session_state["_master_ok"] = f"{len(rows)} menu tersimpan. Menu harian yang sudah diunggah tidak ikut berubah: buka tab Menu harian lalu tekan Unggah menu."
         st.rerun()
 
 # ---------------------------------------------------------------- menu harian
@@ -143,6 +145,21 @@ with tab_harian:
                                        "harga": int(_angka(r.harga)), "hpp": int(_angka(r.hpp)),
                                        "batas_stok": 0, "stok": "", "alternatif": ""})
         st.caption(f"{len(pilihan_harian)} menu dipilih.")
+        _ada = harian[harian["tanggal"] == tgl.isoformat()]
+        _sekarang = {(r.nama, int(_angka(r.harga))) for r in _ada.itertuples()}
+        _baru = {(r["nama"], r["harga"]) for r in pilihan_harian}
+        if _sekarang != _baru:
+            st.warning("⚠️ Perubahan ini **belum diunggah**. Pelanggan masih melihat menu lama sampai kamu menekan **Unggah menu**."
+                       if not _ada.empty else "⚠️ Menu tanggal ini **belum diunggah**. Tekan **Unggah menu** agar muncul di jendela pesan.")
+        _ada = harian[harian["tanggal"] == tgl.isoformat()]
+        if not _ada.empty:
+            _lama = {(r.nama, int(_angka(r.harga))) for r in _ada.itertuples()}
+            _baru = {(m["nama"], int(m["harga"])) for m in pilihan_harian}
+            if _lama != _baru:
+                st.warning("Ada perubahan yang **belum diunggah**. Pelanggan masih melihat menu lama sampai kamu menekan **Unggah menu**. "
+                           "Menu master hanya daftar pilihan, bukan menu yang tampil di jendela pesanan.")
+        st.info("Menu yang saat ini dilihat pelanggan pada " + tgl.strftime('%d/%m/%Y') + ": " + (
+            ", ".join(f"{r.nama} ({logic.rupiah(_angka(r.harga))})" for r in _ada.itertuples() if r.kategori != "Minuman") or "belum ada menu diunggah"))
         if st.button("Unggah menu", type="primary", width="stretch"):
             if not pilihan_harian:
                 st.error("Pilih minimal satu menu.")

@@ -145,3 +145,7 @@ table.rekap td.tot.lunas-tot{background:#BBF7D0!important;color:#14532D;line-hei
 table.rekap td.tot.lunas-tot b{display:block;font-size:.72rem;letter-spacing:.05em;}
 table.rekap td.tot.lunas-tot small{display:block;font-weight:600;font-size:.66rem;opacity:.8;}
 .cap{color:var(--muted);font-size:.8rem;margin:.35rem 0 .2rem;}
+
+/* hari yang baru sebagian dibayar */
+table.rekap td.lunas-sbg{background:#eef8ee;box-shadow:inset 0 0 0 1px #9fd3a5}
+table.rekap td.lunas-sbg small{display:block;font-size:.55rem;color:#2e7d32;line-height:1}
