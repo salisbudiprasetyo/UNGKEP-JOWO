@@ -8,6 +8,7 @@ import streamlit as st
 import base64
 
 import logic
+import orders
 import payments
 import services
 
@@ -87,8 +88,10 @@ with tab_harian:
     if master.empty:
         st.info("Isi dulu daftar menu di tab “Menu master”.")
     else:
-        besok = logic.today_wib() + timedelta(days=1)
-        tgl = st.date_input("Tanggal menu", value=besok, format="DD/MM/YYYY")
+        bawaan = logic.tanggal_menu_default()
+        tgl = st.date_input("Tanggal menu", value=bawaan, format="DD/MM/YYYY")
+        st.caption(f"Diunggah sebelum jam {logic.UNGGAH_BATAS_JAM}:00 WIB = menu hari ini; setelahnya = menu besok. "
+                   f"Tanggal bawaan sekarang: {bawaan.strftime('%d/%m/%Y')}.")
         harian = store.all("MenuHarian")
         sudah = harian[harian["tanggal"] == tgl.isoformat()]
         if not sudah.empty:
@@ -98,6 +101,13 @@ with tab_harian:
             sudah = harian[harian["tanggal"] == terakhir.iloc[0]["tanggal"]] if not terakhir.empty else harian.iloc[0:0]
             if not sudah.empty:
                 st.caption(f"Terisi otomatis dari menu {sudah.iloc[0]['tanggal']}. Ubah seperlunya lalu unggah.")
+        if not harian[harian["tanggal"] == tgl.isoformat()].empty:
+            if orders.pesanan_tgl(store, tgl).empty:
+                if st.button("Hapus menu tanggal ini", key=f"hapus_menu_{tgl}"):
+                    store.replace_where("MenuHarian", "tanggal", tgl.isoformat(), [])
+                    st.rerun()
+            else:
+                st.caption("Menu tidak bisa dihapus karena sudah ada pesanan. Ubah saja lalu unggah ulang.")
         terpilih = {r.nama: r for r in sudah.itertuples()}
         semua_nama = master["nama"].tolist()
 
@@ -404,7 +414,6 @@ with tab_bayar:
 
 
 # ---------------------------------------------------------------- libur pemesanan
-import orders
 
 with tab_libur:
     st.caption("Pilih tanggal yang libur lalu konfirmasi. Di tanggal itu tombol PESAN tidak muncul dan kolomnya bertanda “libur”.")

@@ -259,12 +259,13 @@ def dialog_rincian(tgl_iso: str, nama: str, admin: bool = False):
         if st.button("Ubah pesanan (admin)" if items else "Buat pesanan", width="stretch"):
             st.session_state["_open"] = ("pesan", tgl_iso, nama, True)
             st.rerun()
-    elif items and logic.bisa_edit(tgl):
+    elif items and orders.bisa_ubah(store, tgl):
         if st.button("Ubah / batalkan pesanan", type="primary", width="stretch"):
             st.session_state["_open"] = ("pesan", tgl_iso, nama, False)
             st.rerun()
     elif items:
-        st.caption(f"🔒 Sudah lewat batas {logic.BATAS_TEKS} WIB, pesanan ini tidak bisa diubah lagi.")
+        st.caption("🔒 Order ditutup admin, pesanan ini tidak bisa diubah lagi." if orders.is_tutup(store, tgl)
+                   else f"🔒 Sudah lewat batas {logic.BATAS_TEKS} WIB, pesanan ini tidak bisa diubah lagi.")
 
 
 # ===================================================================== tagihan & pembayaran
@@ -505,6 +506,20 @@ def _html_hari_ini(store, tgl: date, me: str | None, admin: bool) -> dict:
     return {"kepala": kepala, "grup": grup, "akhir": _rekap_akhir_html(semua, admin), "semua": semua}
 
 
+def _kontrol_tutup(store, tgl: date, admin: bool) -> None:
+    tutup = orders.is_tutup(store, tgl)
+    if tutup:
+        st.html('<div class="kosong-info">🔒 Order ditutup. Pelanggan tidak bisa memesan atau mengubah pesanan.</div>')
+    if admin:
+        if tutup:
+            if st.button("Buka kembali order", key="buka_order", width="stretch"):
+                orders.set_tutup(store, tgl, False)
+                st.rerun()
+        elif st.button("Close order", key="tutup_order", type="primary", width="stretch"):
+            orders.set_tutup(store, tgl, True)
+            st.rerun()
+
+
 def render_hari_ini(store, tgl: date, me: str | None, admin: bool):
     kunci = (id(store), tgl, store.stamp("Kasbon", "Revisi", "MenuHarian"), me, admin)
     bag = _MEMO_HI.get(kunci)
@@ -516,9 +531,10 @@ def render_hari_ini(store, tgl: date, me: str | None, admin: bool):
     st.html(bag["kepala"])
     if "kosong" in bag:
         st.html(bag["kosong"])
+        _kontrol_tutup(store, tgl, admin)
         return
     punya_saya = bool(me and not admin and any(o["nama"] == me for o in bag["semua"]))
-    if punya_saya and logic.bisa_edit(tgl):
+    if punya_saya and orders.bisa_ubah(store, tgl):
         if st.button("Ubah / batalkan pesanan saya", key="ubahku", width="stretch"):
             st.session_state["_open"] = ("pesan", tgl.isoformat(), me, False)
             st.rerun()
@@ -533,6 +549,7 @@ def render_hari_ini(store, tgl: date, me: str | None, admin: bool):
         else:
             st.html(g["kepala"] + g["html"] + g["rekap"])
     st.html(bag["akhir"])
+    _kontrol_tutup(store, tgl, admin)
 
 
 def _aksi_admin(store, tgl: date, o: dict, kunci: str):

@@ -237,7 +237,7 @@ _MEMO_TBL: dict = {}
 @st.fragment(run_every=JEDA)
 def tabel_live():
     menit = logic.now_wib().strftime("%Y-%m-%d %H:%M")   # batas jam pesan ikut mempengaruhi tampilan
-    kunci = (id(store), store.stamp("Kasbon", "Revisi", "Libur", "MenuHarian", "Pelanggan"), me, admin, start, cari, menit)
+    kunci = (id(store), store.stamp("Kasbon", "Revisi", "Libur", "MenuHarian", "Pelanggan", "Tutup"), me, admin, start, cari, menit)
     isi = _MEMO_TBL.get(kunci)
     if isi is None:
         d = turunan(cari)

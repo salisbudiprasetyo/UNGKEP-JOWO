@@ -37,6 +37,7 @@ SCHEMA: dict[str, list[str]] = {
     "Pembayaran": ["id", "waktu", "pelanggan", "periode", "jumlah", "tagihan", "metode", "status", "bukti", "catatan", "tanggal"],
     # tanggal libur pemesanan (diatur admin)
     "Libur": ["tanggal", "keterangan", "dibuat"],
+    "Tutup": ["tanggal", "waktu"],
     # backup tabel "Pesanan Hari Ini" (satu baris per pelanggan per hari)
     "RecordHarian": ["tanggal", "periode", "kelompok", "pelanggan", "pesanan", "jumlah", "status", "dicatat"],
 }

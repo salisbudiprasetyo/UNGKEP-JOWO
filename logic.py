@@ -74,6 +74,15 @@ def rupiah(n: float | int) -> str:
     return "Rp" + f"{int(round(n)):,}".replace(",", ".")
 
 
+UNGGAH_BATAS_JAM = 13   # menu diunggah sebelum jam ini = menu hari itu; setelahnya = menu besok
+
+
+def tanggal_menu_default(sekarang: datetime | None = None) -> date:
+    """Tanggal bawaan saat admin mengunggah menu: sebelum jam 13:00 WIB menu hari ini, setelahnya menu besok."""
+    sekarang = sekarang or now_wib()
+    return sekarang.date() + timedelta(days=0 if sekarang.hour < UNGGAH_BATAS_JAM else 1)
+
+
 def bisa_edit(tgl: date, sekarang: datetime | None = None) -> bool:
     """Pelanggan boleh mengubah pesanan untuk tanggal `tgl` sampai batas jam (BATAS_TEKS) WIB pada hari itu."""
     sekarang = sekarang or now_wib()

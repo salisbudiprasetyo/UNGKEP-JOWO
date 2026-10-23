@@ -59,3 +59,6 @@ Di jendela rincian harian, centang item yang dibayar (admin: "Konfirmasi lunas",
 
 ## Menu master vs menu harian
 Mengubah Menu master tidak mengubah menu harian yang sudah diunggah. Setelah mengubah, buka tab Menu harian dan tekan "Unggah menu".
+
+## Jam unggah menu & Close order
+Tanggal bawaan di tab Menu harian: diunggah sebelum 13:00 WIB = menu hari ini, setelahnya = menu besok (tanggal tetap bisa diganti). Menu tanggal yang belum ada pesanan bisa dihapus. Tombol **Close order** di bawah rekap Pesanan Hari Ini menutup order: pelanggan tidak bisa memesan/mengubah/membatalkan; admin bisa **Buka kembali order**.

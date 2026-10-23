@@ -67,6 +67,25 @@ def hapus_libur(store, tgl: date) -> None:
     store.replace_where("Libur", "tanggal", tgl.isoformat(), [])
 
 
+def tutup_set(store) -> set[date]:
+    """Tanggal yang order-nya ditutup admin (pelanggan tidak bisa memesan/mengubah)."""
+    return {_tgl(t) for t in store.all("Tutup")["tanggal"] if t}
+
+
+def is_tutup(store, tgl: date) -> bool:
+    return tgl in tutup_set(store)
+
+
+def set_tutup(store, tgl: date, tutup: bool) -> None:
+    rows = [{"tanggal": tgl.isoformat(), "waktu": logic.now_wib().isoformat(timespec="seconds")}] if tutup else []
+    store.replace_where("Tutup", "tanggal", tgl.isoformat(), rows)
+
+
+def bisa_ubah(store, tgl: date, sekarang=None) -> bool:
+    """Pelanggan masih boleh mengubah/membatalkan pesanan: belum lewat batas jam dan order belum ditutup admin."""
+    return logic.bisa_edit(tgl, sekarang) and not is_tutup(store, tgl)
+
+
 def tanggal_menu(store) -> list[date]:
     """Tanggal yang menunya sudah diunggah dan tidak libur."""
     libur = libur_map(store)
@@ -82,15 +101,16 @@ def tanggal_aktif(store) -> date | None:
 
 def bisa_pesan(store, tgl: date, sekarang=None) -> bool:
     """Tombol PESAN aktif bila menu tanggal itu sudah ada dan belum lewat batas jam pada hari H."""
-    return tgl in set(tanggal_menu(store)) and logic.bisa_edit(tgl, sekarang)
+    return tgl in set(tanggal_menu(store)) and bisa_ubah(store, tgl, sekarang)
 
 
 def tanggal_pesan_pelanggan(store, sekarang=None) -> date | None:
     """Satu-satunya tanggal yang tombol PESAN-nya aktif untuk pelanggan: menu terdekat (hari ini atau
     yang berikutnya) yang sudah diunggah dan belum lewat batas jam."""
     hari = (sekarang or logic.now_wib()).date()
+    tutup = tutup_set(store)
     for d in tanggal_menu(store):
-        if d >= hari and logic.bisa_edit(d, sekarang):
+        if d >= hari and d not in tutup and logic.bisa_edit(d, sekarang):
             return d
     return None
 
@@ -206,6 +226,8 @@ def simpan_pesanan(store, tgl: date, nama: str, pilihan: dict[str, int], catatan
     """Kembalikan (galat, jenis). jenis: 'baru' | 'revisi' | 'langsung'."""
     if is_libur(store, tgl):
         return "Tanggal ini libur pemesanan.", ""
+    if not langsung and is_tutup(store, tgl):
+        return "Order untuk tanggal ini sudah ditutup admin.", ""
     if not langsung and not bisa_pesan(store, tgl, sekarang):
         return f"Waktu pemesanan untuk tanggal ini sudah ditutup (batas {logic.BATAS_TEKS} WIB).", ""
     items, err = _susun_items(store, tgl, nama, pilihan)
@@ -247,6 +269,8 @@ def simpan_pesanan(store, tgl: date, nama: str, pilihan: dict[str, int], catatan
 def batalkan_pesanan(store, tgl: date, nama: str, langsung: bool = False, sekarang=None) -> str | None:
     if not items_pesanan(store, tgl, nama):
         return "Pesanan tidak ditemukan."
+    if not langsung and is_tutup(store, tgl):
+        return "Order untuk tanggal ini sudah ditutup admin."
     if not langsung and not logic.bisa_edit(tgl, sekarang):
         return f"Waktu pembatalan sudah lewat (batas {logic.BATAS_TEKS} WIB)."
     wkt = (sekarang or logic.now_wib()).isoformat(timespec="seconds")
