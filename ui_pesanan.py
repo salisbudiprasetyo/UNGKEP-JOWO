@@ -605,3 +605,34 @@ def dialog_siapa(tgl_iso: str, kunci: str, admin: bool = False):
             st.session_state["_open"] = ("siapa", tgl_iso, kunci)
             st.rerun()
     st.caption("Status bungkus berlaku untuk seluruh pesanan orang itu.")
+
+
+# ===================================================================== Meong (kucing maskot) — obrolan
+@st.dialog("Ngobrol sama Meong 🐱")
+def dialog_kucing(nama: str | None = None):
+    import kucing
+    store = services.get_store()
+    riwayat = st.session_state.setdefault("_chat", [])
+    if not riwayat:
+        riwayat.append(("bot", f"Meong! Halo{' ' + nama if nama else ''} 😺 Aku penjaga warung. Mau tanya apa? Pilih di bawah atau ketik sendiri."))
+
+    def tanya(q: str):
+        riwayat.append(("user", q))
+        riwayat.append(("bot", kucing.jawab(store, nama, q)))
+
+    with st.container(key="chat_atas"):
+        with st.form("form_chat", clear_on_submit=True, border=False):
+            c = st.columns([3.2, 1.2], vertical_alignment="bottom")
+            isi = c[0].text_input("Pertanyaan", placeholder="Ketik pertanyaanmu…", label_visibility="collapsed")
+            kirim = c[1].form_submit_button("Kirim", type="primary", width="stretch")
+    if kirim and isi.strip():
+        tanya(isi.strip())
+    with st.container(key="chat_saran"):
+        for i in range(0, len(kucing.SARAN), 3):
+            cols = st.columns(3)
+            for j, s in enumerate(kucing.SARAN[i:i + 3]):
+                if cols[j].button(s, key=f"saran_{i + j}", width="stretch"):
+                    tanya(s)
+    for peran, teks in riwayat[-8:][::-1]:
+        with st.chat_message("assistant" if peran == "bot" else "user", avatar="🐱" if peran == "bot" else None):
+            st.markdown(teks)

@@ -265,4 +265,8 @@ table.rekap td.libur{background:#FFE3EA!important;color:#E0002B!important;font-w
 .rk-akhir tr.tot td{border-top:2px dashed var(--line);}
 .rk-akhir td.q{color:var(--brand);}
 .psn.s-rev{background:#FFF1C2;border-color:#F2CF6A;}
+/* obrolan Meong: baris tetap sejajar di HP */
+.st-key-chat_atas [data-testid="stHorizontalBlock"],.st-key-chat_saran [data-testid="stHorizontalBlock"]{flex-direction:row!important;flex-wrap:nowrap!important;gap:.4rem!important;}
+.st-key-chat_atas [data-testid="stColumn"],.st-key-chat_saran [data-testid="stColumn"]{min-width:0!important;}
+.st-key-chat_saran .stButton>button{min-height:2.3rem;padding:.2rem .3rem;font-size:.74rem;line-height:1.15;}
 """

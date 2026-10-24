@@ -68,3 +68,6 @@ Tanggal bawaan di tab Menu harian: diunggah sebelum 13:00 WIB = menu hari ini, s
 - Kartu hanya muncul untuk **permintaan revisi** (sebelum/sesudah, perubahan disorot, catatan otomatis; admin: Konfirmasi revisi / Tolak revisi).
 - **Rekap pesanan** bisa diketuk per baris (paket, lauk saja, tiap menu) untuk melihat siapa yang memesan; admin menandai "Bungkus" per orang atau "Bungkus semua".
 - Kolom TOTAL di tabel dan "TOTAL KASBON" di jendela tagihan = kasbon yang **belum dibayar**.
+
+## Meong, kucing maskot
+Kucing animasi menyapa setelah masuk, berjalan/berlari/duduk/tidur/melompat di bagian bawah halaman, lari ke tempat yang diketuk, dan bisa diketuk untuk ngobrol (menu hari ini, pesanan saya, tagihan, cara bayar, jam batas, libur). Jawaban dibuat dari data aplikasi dengan aturan sederhana (bukan AI luar). Kode: `kucing.py`. Kucing disembunyikan di halaman admin.
