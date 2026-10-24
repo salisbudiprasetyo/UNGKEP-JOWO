@@ -133,7 +133,8 @@ def tabel_html(df: pd.DataFrame, nama_semua: list[str], hari: list[date], me: st
             elif v:
                 isi = ("⏳" if pending else "") + f"{int(v):,}".replace(",", ".")
             elif klik:
-                isi = '<span class="pill-pesan">PESAN</span>'
+                isi = ('<span class="pill-pesan">PESAN</span>' if (not admin or d >= hari_ini)
+                       else '<span class="pill-tambah">+</span>')
             elif d in libur:
                 isi = "libur"
             else:
@@ -189,7 +190,7 @@ def turunan(cari_: str = "") -> SimpleNamespace:
     if cari_:
         nama = [n for n in nama if cari_.lower() in n.lower() or n == me]
     return SimpleNamespace(df=df_, libur=orders.libur_map(store), buka=buka, buka_admin=buka_admin, punyaku=punya, rev=rev_,
-                           nama=nama, semua=semua, sel_kosong=({buka_admin} if (admin and buka_admin) else ({buka} if buka else set())))
+                           nama=nama, semua=semua, sel_kosong=(set(orders.tanggal_menu(store)) if admin else ({buka} if buka else set())))
 
 
 D = turunan()
@@ -238,7 +239,7 @@ if klik:
             ada = bool(orders.items_pesanan(store, tg, a2))
             if ada:
                 st.session_state["_open"] = ("rincian", a1, a2)
-            elif admin and tg == _buka_admin:
+            elif admin and tg in set(orders.tanggal_menu(store)):
                 st.session_state["_open"] = ("pesan", a1, a2, True)
             elif not admin and tg == _buka:
                 st.session_state["_open"] = ("pesan", a1, a2, False)

@@ -171,3 +171,5 @@ table.rev tr.ubah td{background:#FDE68A;font-weight:800}
 .chip.s-rev{background:#FDE68A;color:#92400E}
 
 
+
+.pill-tambah{display:inline-block;min-width:1.5rem;border:2px dashed #E0A15A;color:#B9601A;font-weight:900;border-radius:999px;padding:0 .35rem;line-height:1.3;}
