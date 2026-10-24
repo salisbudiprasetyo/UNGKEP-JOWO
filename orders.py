@@ -257,10 +257,8 @@ def simpan_pesanan(store, tgl: date, nama: str, pilihan: dict[str, int], catatan
         lama = pesanan_tgl(store, tgl)
         lama = lama[lama["pelanggan"] == nama]
         rows = _baris(tgl, nama, items, catatan, "Disetujui", wkt, pemesan(store, tgl, nama) if not lama.empty else oleh)
-        # status lunas dipertahankan per item; item yang baru ditambah atau berubah jumlahnya kembali "Belum"
-        lunas_lama = {(r.item, int(float(r.qty))) for r in lama.itertuples() if r.status_bayar == "Lunas"}
         for r in rows:
-            r["status_bayar"] = "Lunas" if (r["item"], int(r["qty"])) in lunas_lama else "Belum"
+            r["status_bayar"] = lama.iloc[0]["status_bayar"] if not lama.empty else "Belum"
         store.replace_where("Kasbon", "order_id", oid, rows)
         _tutup_revisi(store, tgl, nama, "Diganti admin")
         kind = "langsung"
