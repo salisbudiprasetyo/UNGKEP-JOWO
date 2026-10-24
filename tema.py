@@ -8,66 +8,67 @@ from urllib.parse import quote
 
 # ----------------------------------------------------------------- motif (koordinat lokal ± 0..64)
 def _wajah(x: float, y: float, s: float = 1.0) -> str:
-    return (f'<circle cx="{x-5*s}" cy="{y}" r="{1.7*s}" fill="#5A2A22"/><circle cx="{x+5*s}" cy="{y}" r="{1.7*s}" fill="#5A2A22"/>'
-            f'<path d="M{x-2.2*s} {y+3*s} q{2.2*s} {2.4*s} {4.4*s} 0" stroke="#5A2A22" stroke-width="{1.3*s}" fill="none" stroke-linecap="round"/>'
-            f'<circle cx="{x-9*s}" cy="{y+3*s}" r="{2.3*s}" fill="#FF8FA8" opacity=".7"/><circle cx="{x+9*s}" cy="{y+3*s}" r="{2.3*s}" fill="#FF8FA8" opacity=".7"/>')
+    return (f'<circle cx="{x-5*s}" cy="{y}" r="{1.7*s}" fill="#4A2412"/><circle cx="{x+5*s}" cy="{y}" r="{1.7*s}" fill="#4A2412"/>'
+            f'<path d="M{x-2.2*s} {y+3*s} q{2.2*s} {2.4*s} {4.4*s} 0" stroke="#4A2412" stroke-width="{1.3*s}" fill="none" stroke-linecap="round"/>'
+            f'<circle cx="{x-9*s}" cy="{y+3*s}" r="{2.3*s}" fill="#FF9E6B" opacity=".65"/><circle cx="{x+9*s}" cy="{y+3*s}" r="{2.3*s}" fill="#FF9E6B" opacity=".65"/>')
 
 
 def udang() -> str:
-    """Udang rebus yang gemuk: badan melengkung berisi, garis ruas, ekor mengembang, mata besar."""
-    badan = ("M6 22 C8 6 30 -2 48 10 C62 20 62 40 50 52 C54 40 52 30 44 24 C34 17 24 20 20 30 C16 36 6 34 6 22 Z")
-    return ('<path d="M50 52 C41 54 36 62 39 67 C45 66 50 61 50 52 Z" fill="#FF6F4F"/>'
-            '<path d="M50 52 C53 61 58 65 64 63 C63 57 58 53 50 52 Z" fill="#FF6F4F"/>'
-            '<path d="M50 52 C46 60 49 68 53 68 C55 63 53 58 50 52 Z" fill="#FF8C69"/>'
-            '<path d="M8 22 C2 22 -2 18 -4 12 C3 12 8 14 10 17 Z" fill="#F0644A"/>'
-            f'<path d="{badan}" fill="#FF9570" stroke="#EE6B4D" stroke-width="1.6" stroke-linejoin="round"/>'
-            '<path d="M20 4 L25 19 M31 1.5 L34 17 M42 6 L43 22 M52 14 L48 27 M58 26 L52 36" stroke="#FFD1BF" stroke-width="2.2" stroke-linecap="round"/>'
-            '<path d="M12 8 C20 -1 34 -2 44 6" stroke="#FFC4AE" stroke-width="2.6" fill="none" stroke-linecap="round" opacity=".8"/>'
-            '<path d="M18 31 l-3 7 M25 27 l-2 8 M32 24 l1 8" stroke="#F0644A" stroke-width="2" stroke-linecap="round"/>'
-            '<path d="M7 28 C0 32 -3 40 0 48" stroke="#F0644A" stroke-width="1.6" fill="none" stroke-linecap="round"/>'
-            '<circle cx="15" cy="19" r="3.6" fill="#fff"/><circle cx="15.6" cy="19.4" r="2.1" fill="#5A2A22"/>'
-            '<circle cx="21" cy="26" r="3" fill="#FF8FA8" opacity=".7"/>')
+    """Udang goreng krispi: badan melengkung bertepung keemasan, ruas jelas, ekor oranye mengembang, mata imut."""
+    return ('<g transform="translate(14.1 38.5) rotate(-20)">'
+            '<g fill="#E8501E" stroke="#B93A12" stroke-width="1.3" stroke-linejoin="round">'
+            '<ellipse cx="-6" cy="10" rx="3.8" ry="9" transform="rotate(26 -6 10)"/><ellipse cx="6" cy="10" rx="3.8" ry="9" transform="rotate(-26 6 10)"/>'
+            '<ellipse cx="0" cy="12" rx="4" ry="10" fill="#F77F35"/></g></g>'
+            '<g fill="#C9731A" stroke="#C9731A" stroke-width="1.2"><circle cx="49.9" cy="38.5" r="5.3"/><circle cx="50.6" cy="36.0" r="6.9"/><circle cx="50.9" cy="33.4" r="8.0"/><circle cx="51.0" cy="30.8" r="8.9"/><circle cx="50.6" cy="28.2" r="9.7"/><circle cx="49.9" cy="25.7" r="10.4"/><circle cx="48.9" cy="23.3" r="11.0"/><circle cx="47.6" cy="21.1" r="11.5"/><circle cx="45.9" cy="19.1" r="11.9"/><circle cx="44.0" cy="17.3" r="12.2"/><circle cx="41.9" cy="15.8" r="12.4"/><circle cx="39.6" cy="14.6" r="12.5"/><circle cx="37.1" cy="13.7" r="12.5"/><circle cx="34.6" cy="13.2" r="12.4"/><circle cx="32.0" cy="13.0" r="12.3"/><circle cx="29.4" cy="13.2" r="12.1"/><circle cx="26.9" cy="13.7" r="11.8"/><circle cx="24.4" cy="14.6" r="11.5"/><circle cx="22.1" cy="15.8" r="11.1"/><circle cx="20.0" cy="17.3" r="10.7"/><circle cx="18.1" cy="19.1" r="10.2"/><circle cx="16.4" cy="21.1" r="9.6"/><circle cx="15.1" cy="23.3" r="9.1"/><circle cx="14.1" cy="25.7" r="8.5"/><circle cx="13.4" cy="28.2" r="7.9"/><circle cx="13.0" cy="30.8" r="7.2"/><circle cx="13.1" cy="33.4" r="6.6"/><circle cx="13.4" cy="36.0" r="5.9"/><circle cx="14.1" cy="38.5" r="5.3"/></g>'
+            '<g fill="#F4AE38"><circle cx="49.9" cy="38.5" r="4.0"/><circle cx="50.6" cy="36.0" r="5.6"/><circle cx="50.9" cy="33.4" r="6.7"/><circle cx="51.0" cy="30.8" r="7.6"/><circle cx="50.6" cy="28.2" r="8.4"/><circle cx="49.9" cy="25.7" r="9.1"/><circle cx="48.9" cy="23.3" r="9.7"/><circle cx="47.6" cy="21.1" r="10.2"/><circle cx="45.9" cy="19.1" r="10.6"/><circle cx="44.0" cy="17.3" r="10.9"/><circle cx="41.9" cy="15.8" r="11.1"/><circle cx="39.6" cy="14.6" r="11.2"/><circle cx="37.1" cy="13.7" r="11.2"/><circle cx="34.6" cy="13.2" r="11.1"/><circle cx="32.0" cy="13.0" r="11.0"/><circle cx="29.4" cy="13.2" r="10.8"/><circle cx="26.9" cy="13.7" r="10.5"/><circle cx="24.4" cy="14.6" r="10.2"/><circle cx="22.1" cy="15.8" r="9.8"/><circle cx="20.0" cy="17.3" r="9.4"/><circle cx="18.1" cy="19.1" r="8.9"/><circle cx="16.4" cy="21.1" r="8.3"/><circle cx="15.1" cy="23.3" r="7.8"/><circle cx="14.1" cy="25.7" r="7.2"/><circle cx="13.4" cy="28.2" r="6.6"/><circle cx="13.0" cy="30.8" r="5.9"/><circle cx="13.1" cy="33.4" r="5.3"/><circle cx="13.4" cy="36.0" r="4.6"/><circle cx="14.1" cy="38.5" r="4.0"/></g>'
+            '<path d="M49.0 25.9 A21 21 0 0 0 34.6 5.7" stroke="#FFE49A" stroke-width="3" fill="none" stroke-linecap="round" opacity=".9"/>'
+            '<g stroke="#C9731A" stroke-width="1.5" stroke-linecap="round" opacity=".55"><path d="M52.7 30.7 L58.4 30.4" /><path d="M50.9 22.3 L57.4 19.0" /><path d="M45.6 15.4 L50.8 9.0" /><path d="M37.8 11.3 L40.1 3.1" /><path d="M29.1 10.8 L28.0 2.7" /><path d="M20.9 13.9 L17.1 7.6" /><path d="M14.9 20.0 L9.8 16.4" /><path d="M11.8 27.9 L7.1 27.0" /></g>'
+            '<g fill="#B9601A" opacity=".75"><circle cx="54.9" cy="27.4" r="1.3"/><circle cx="52.6" cy="26.6" r="1.3"/><circle cx="44.0" cy="14.1" r="1.3"/><circle cx="44.8" cy="11.0" r="1.3"/><circle cx="42.7" cy="13.2" r="1.3"/><circle cx="26.8" cy="11.0" r="1.3"/><circle cx="25.4" cy="8.6" r="1.3"/><circle cx="25.1" cy="11.8" r="1.3"/><circle cx="14.0" cy="21.1" r="1.3"/><circle cx="11.5" cy="21.5" r="1.3"/><circle cx="12.8" cy="24.7" r="1.3"/><circle cx="12.2" cy="36.3" r="1.3"/></g>'
+            '<circle cx="51.9" cy="35.5" r="3.4" fill="#fff"/><circle cx="52.5" cy="35.9" r="2" fill="#5A2A22"/>'
+            '<path d="M55.5 38.8 l8 -1 l-4 6 Z" fill="#E8501E" stroke="#B93A12" stroke-width="1"/>')
 
 
 def ikan() -> str:
-    return ('<path d="M50 22 L69 8 Q64 22 69 36 Z" fill="#6EC6DA"/>'
-            '<path d="M20 9 Q30 -3 42 9 Z" fill="#6EC6DA"/>'
-            '<ellipse cx="28" cy="22" rx="25" ry="16" fill="#92DAE8"/>'
-            '<ellipse cx="28" cy="29" rx="19" ry="8" fill="#D6F3F7" opacity=".85"/>'
-            '<path d="M30 14 q6 4 0 9 M38 14 q6 4 0 9 M46 16 q4 3 0 7" stroke="#fff" stroke-width="1.4" fill="none" opacity=".8" stroke-linecap="round"/>'
+    """Ikan goreng keemasan dengan garis bakar."""
+    return ('<path d="M50 22 L69 8 Q64 22 69 36 Z" fill="#E58A25" stroke="#B9661A" stroke-width="1.2" stroke-linejoin="round"/>'
+            '<path d="M20 9 Q30 -3 42 9 Z" fill="#E58A25" stroke="#B9661A" stroke-width="1.2" stroke-linejoin="round"/>'
+            '<ellipse cx="28" cy="22" rx="25" ry="16" fill="#F4A93A" stroke="#C9731A" stroke-width="1.4"/>'
+            '<ellipse cx="28" cy="29" rx="19" ry="8" fill="#FFD68A" opacity=".85"/>'
+            '<path d="M30 10 q6 12 0 25 M39 11 q6 11 0 23 M48 14 q4 8 0 16" stroke="#C9731A" stroke-width="1.6" fill="none" opacity=".6" stroke-linecap="round"/>'
             '<circle cx="14" cy="18" r="4.2" fill="#fff"/><circle cx="14.6" cy="18.4" r="2.2" fill="#5A2A22"/>'
             '<path d="M7 25 q4 4 8 0" stroke="#5A2A22" stroke-width="1.4" fill="none" stroke-linecap="round"/>'
-            '<circle cx="19" cy="27" r="3" fill="#FF8FA8" opacity=".7"/>')
+            '<circle cx="19" cy="27" r="3" fill="#FF9A6B" opacity=".75"/>')
 
 
 def paha_ayam() -> str:
     return ('<g transform="rotate(-30 30 30)">'
             '<path d="M36 36 L58 54" stroke="#FFF3DC" stroke-width="7" stroke-linecap="round"/>'
             '<circle cx="60" cy="50" r="4.4" fill="#FFF3DC"/><circle cx="55" cy="58" r="4.4" fill="#FFF3DC"/>'
-            '<path d="M8 28 C-2 10 22 -4 40 6 C56 15 52 36 34 41 C22 44 13 38 8 28 Z" fill="#F6B23D"/>'
-            '<circle cx="18" cy="14" r="2.2" fill="#E8901A"/><circle cx="32" cy="10" r="2" fill="#E8901A"/><circle cx="40" cy="24" r="2.4" fill="#E8901A"/>'
-            '<circle cx="24" cy="28" r="2" fill="#E8901A"/><ellipse cx="20" cy="18" rx="7" ry="3.2" fill="#fff" opacity=".45" transform="rotate(-25 20 18)"/>'
+            '<path d="M8 28 C-2 10 22 -4 40 6 C56 15 52 36 34 41 C22 44 13 38 8 28 Z" fill="#E9992B" stroke="#B8661A" stroke-width="1.6"/>'
+            '<circle cx="18" cy="14" r="2.2" fill="#B8661A"/><circle cx="32" cy="10" r="2" fill="#B8661A"/><circle cx="40" cy="24" r="2.4" fill="#B8661A"/>'
+            '<circle cx="24" cy="28" r="2" fill="#B8661A"/><circle cx="28" cy="20" r="1.6" fill="#FFD27A"/>'
+            '<ellipse cx="20" cy="18" rx="7" ry="3.2" fill="#FFE2A0" opacity=".6" transform="rotate(-25 20 18)"/>'
             '</g>')
 
 
 def telur() -> str:
     return ('<path d="M8 26 C3 11 20 2 32 6 C46 -3 63 10 56 27 C62 41 44 51 32 46 C18 54 2 41 8 26 Z" fill="#FFFDF6" stroke="#F4E4C6" stroke-width="2"/>'
-            '<circle cx="32" cy="26" r="12" fill="#FFC83D"/><circle cx="27.5" cy="21.5" r="3.4" fill="#fff" opacity=".7"/>' + _wajah(32, 28, .8))
+            '<circle cx="32" cy="26" r="12" fill="#FFAE1F"/><circle cx="27.5" cy="21.5" r="3.4" fill="#fff" opacity=".7"/>' + _wajah(32, 28, .8))
 
 
 def mangkok() -> str:
     return ('<path d="M-4 10 C-2 -4 6 -4 8 4 M62 8 C64 -4 72 -2 70 8" stroke="#FFC9BC" stroke-width="2.2" fill="none" stroke-linecap="round" opacity="0"/>'
-            '<path d="M18 -2 c-4 -5 4 -8 0 -13 M32 0 c-4 -5 4 -8 0 -13 M46 -2 c-4 -5 4 -8 0 -13" stroke="#FFC9BC" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
+            '<path d="M18 -2 c-4 -5 4 -8 0 -13 M32 0 c-4 -5 4 -8 0 -13 M46 -2 c-4 -5 4 -8 0 -13" stroke="#F6B87A" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
             '<path d="M5 26 C5 6 59 6 59 26 Z" fill="#fff" stroke="#F4E4C6" stroke-width="2"/>'
             '<circle cx="20" cy="17" r="1.6" fill="#EBDCC0"/><circle cx="32" cy="12" r="1.6" fill="#EBDCC0"/><circle cx="43" cy="18" r="1.6" fill="#EBDCC0"/>'
-            '<path d="M2 26 H62 C62 46 48 58 32 58 C16 58 2 46 2 26 Z" fill="#FF8E7A"/>'
-            '<path d="M5 33 H59" stroke="#FFC4B6" stroke-width="3" stroke-linecap="round"/>' + _wajah(32, 43, .85))
+            '<path d="M2 26 H62 C62 46 48 58 32 58 C16 58 2 46 2 26 Z" fill="#D9531E"/>'
+            '<path d="M5 33 H59" stroke="#FFC48A" stroke-width="3" stroke-linecap="round"/>' + _wajah(32, 43, .85))
 
 
 def gelas_teh() -> str:
-    return ('<path d="M36 40 L44 -6" stroke="#FF8FB1" stroke-width="4.5" stroke-linecap="round"/>'
-            '<path d="M12 8 H52 L47 60 H17 Z" fill="#FFD9A0" stroke="#F6B766" stroke-width="2"/>'
-            '<path d="M13.5 22 H50.5 L47 60 H17 Z" fill="#F7B55E" opacity=".75"/>'
+    return ('<path d="M36 40 L44 -6" stroke="#E8452C" stroke-width="4.5" stroke-linecap="round"/>'
+            '<path d="M12 8 H52 L47 60 H17 Z" fill="#FFE0A8" stroke="#F0A94A" stroke-width="2"/>'
+            '<path d="M13.5 22 H50.5 L47 60 H17 Z" fill="#E8922B" opacity=".85"/>'
             '<rect x="22" y="26" width="10" height="10" rx="2.5" fill="#fff" opacity=".7" transform="rotate(14 27 31)"/>'
             '<rect x="33" y="36" width="9" height="9" rx="2.5" fill="#fff" opacity=".65" transform="rotate(-12 37 40)"/>'
             '<circle cx="52" cy="8" r="9.5" fill="#FFE680" stroke="#F7C948" stroke-width="2"/>'
@@ -77,31 +78,31 @@ def gelas_teh() -> str:
 
 def cabai() -> str:
     j = "M8 10 C34 6 54 24 56 54"
-    return (f'<path d="{j}" fill="none" stroke="#F4574C" stroke-width="11" stroke-linecap="round"/>'
-            f'<path d="M12 5 C32 2 48 14 52 30" fill="none" stroke="#FF9488" stroke-width="3" stroke-linecap="round" opacity=".7"/>'
-            '<path d="M6 8 C0 4 -2 -2 2 -8" stroke="#58B968" stroke-width="5" fill="none" stroke-linecap="round"/>')
+    return (f'<path d="{j}" fill="none" stroke="#D93A2B" stroke-width="11" stroke-linecap="round"/>'
+            f'<path d="M12 5 C32 2 48 14 52 30" fill="none" stroke="#FF8A70" stroke-width="3" stroke-linecap="round" opacity=".7"/>'
+            '<path d="M6 8 C0 4 -2 -2 2 -8" stroke="#6FA03C" stroke-width="5" fill="none" stroke-linecap="round"/>')
 
 
 def tomat() -> str:
-    return ('<circle cx="22" cy="26" r="17" fill="#FF6F61"/><ellipse cx="15" cy="19" rx="5" ry="3" fill="#fff" opacity=".45" transform="rotate(-30 15 19)"/>'
-            '<path d="M22 10 L17 3 L22 6 L27 2 L26 10 L33 11 L25 14 Z" fill="#5BB86A"/>' + _wajah(22, 28, .65))
+    return ('<circle cx="22" cy="26" r="17" fill="#E8512C"/><ellipse cx="15" cy="19" rx="5" ry="3" fill="#fff" opacity=".45" transform="rotate(-30 15 19)"/>'
+            '<path d="M22 10 L17 3 L22 6 L27 2 L26 10 L33 11 L25 14 Z" fill="#6FA03C"/>' + _wajah(22, 28, .65))
 
 
 def bunga() -> str:
-    p = "".join(f'<circle cx="{20+11*__import__("math").cos(a*1.2566):.1f}" cy="{20+11*__import__("math").sin(a*1.2566):.1f}" r="8" fill="#FFB3C6"/>' for a in range(5))
-    return p + '<circle cx="20" cy="20" r="6" fill="#FFD25E"/>'
+    p = "".join(f'<circle cx="{20+11*__import__("math").cos(a*1.2566):.1f}" cy="{20+11*__import__("math").sin(a*1.2566):.1f}" r="8" fill="#FFC857"/>' for a in range(5))
+    return p + '<circle cx="20" cy="20" r="6" fill="#E8842B"/>'
 
 
 def hati() -> str:
-    return '<path d="M16 30 C-8 12 6 -6 16 8 C26 -6 40 12 16 30 Z" fill="#FF9FB8"/><ellipse cx="9" cy="8" rx="3" ry="2" fill="#fff" opacity=".5"/>'
+    return '<path d="M16 30 C-8 12 6 -6 16 8 C26 -6 40 12 16 30 Z" fill="#F2784B"/><ellipse cx="9" cy="8" rx="3" ry="2" fill="#fff" opacity=".5"/>'
 
 
 def kilau() -> str:
-    return '<path d="M12 0 C13 8 16 11 24 12 C16 13 13 16 12 24 C11 16 8 13 0 12 C8 11 11 8 12 0 Z" fill="#FFD25E"/>'
+    return '<path d="M12 0 C13 8 16 11 24 12 C16 13 13 16 12 24 C11 16 8 13 0 12 C8 11 11 8 12 0 Z" fill="#FFC857"/>'
 
 
 def daun() -> str:
-    return '<path d="M2 28 C0 8 16 0 32 2 C34 18 24 32 2 28 Z" fill="#A8DCB0"/><path d="M4 26 C12 18 20 12 30 4" stroke="#fff" stroke-width="1.6" fill="none" opacity=".7"/>'
+    return '<path d="M2 28 C0 8 16 0 32 2 C34 18 24 32 2 28 Z" fill="#A9C96A"/><path d="M4 26 C12 18 20 12 30 4" stroke="#fff" stroke-width="1.6" fill="none" opacity=".7"/>'
 
 
 def _g(motif: str, x: float, y: float, rot: float = 0, s: float = 1.0) -> str:
@@ -130,38 +131,46 @@ def pola_uri() -> str:
 
 @lru_cache(maxsize=1)
 def logo_svg() -> str:
-    """Logo buatan sendiri: mangkok kuah gurih berisi ayam goreng kriuk, sayur segar, dan nasi. Tanpa tulisan & tanpa latar."""
-    ayam = ('<g transform="translate(31 51) rotate(165) scale(.78) translate(-24 -22)">'
-            '<path d="M30 38 L50 58" stroke="#FFF3DC" stroke-width="7" stroke-linecap="round"/>'
-            '<circle cx="53" cy="55" r="4.4" fill="#FFF3DC"/><circle cx="47" cy="62" r="4.4" fill="#FFF3DC"/>'
-            '<g fill="#F7B53A" stroke="#E08A1C" stroke-width="1.4"><circle cx="43.0" cy="20.0" r="4.2"/><circle cx="38.6" cy="29.6" r="4.2"/><circle cx="27.3" cy="34.8" r="4.2"/><circle cx="14.5" cy="33.0" r="4.2"/><circle cx="6.1" cy="25.1" r="4.2"/><circle cx="6.1" cy="14.9" r="4.2"/><circle cx="14.5" cy="7.0" r="4.2"/><circle cx="27.3" cy="5.2" r="4.2"/><circle cx="38.6" cy="10.4" r="4.2"/></g>'
-            '<ellipse cx="24" cy="20" rx="20" ry="15.5" fill="#F7B53A"/>'
-            '<path d="M9 13 C14 5 26 3 34 6" stroke="#FFE08A" stroke-width="3" fill="none" stroke-linecap="round"/>'
-            '<g fill="#E0881A"><circle cx="13" cy="19" r="1.8"/><circle cx="22" cy="12" r="1.6"/><circle cx="32" cy="17" r="1.8"/><circle cx="20" cy="26" r="1.7"/>'
-            '<circle cx="30" cy="27" r="1.6"/><circle cx="38" cy="22" r="1.4"/></g>'
-            '<g fill="#FFD66B"><circle cx="24" cy="19" r="1.4"/><circle cx="16" cy="25" r="1.2"/><circle cx="35" cy="12" r="1.2"/></g>'
+    """Logo buatan sendiri: mangkok kuah gurih berisi ayam goreng kriuk, sayur segar, dan nasi hangat. Tanpa tulisan & tanpa latar."""
+    defs = ('<defs>'
+            '<linearGradient id="mk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F0763A"/><stop offset="1" stop-color="#B9381A"/></linearGradient>'
+            '<linearGradient id="rm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD25E"/><stop offset="1" stop-color="#F0A21E"/></linearGradient>'
+            '<radialGradient id="ku" cx=".5" cy=".4" r=".7"><stop offset="0" stop-color="#F28A25"/><stop offset="1" stop-color="#B8401A"/></radialGradient>'
+            '<radialGradient id="ay" cx=".4" cy=".3" r=".8"><stop offset="0" stop-color="#FFD76A"/><stop offset=".6" stop-color="#F2A52E"/><stop offset="1" stop-color="#C9701A"/></radialGradient>'
+            '<linearGradient id="dn" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8ED36A"/><stop offset="1" stop-color="#3E9A4A"/></linearGradient>'
+            '</defs>')
+    ayam = ('<g transform="translate(30 50) rotate(160) scale(.8) translate(-24 -22)">'
+            '<path d="M30 38 L50 58" stroke="#FFF1D2" stroke-width="7" stroke-linecap="round"/>'
+            '<circle cx="53" cy="55" r="4.4" fill="#FFF1D2"/><circle cx="47" cy="62" r="4.4" fill="#FFF1D2"/>'
+            '<g fill="#E8991F" stroke="#B9601A" stroke-width="1.3"><circle cx="43.0" cy="20.0" r="4.4"/><circle cx="39.4" cy="28.8" r="4.4"/><circle cx="29.9" cy="34.3" r="4.4"/><circle cx="18.1" cy="34.3" r="4.4"/><circle cx="8.6" cy="28.8" r="4.4"/><circle cx="5.0" cy="20.0" r="4.4"/><circle cx="8.6" cy="11.2" r="4.4"/><circle cx="18.1" cy="5.7" r="4.4"/><circle cx="29.9" cy="5.7" r="4.4"/><circle cx="39.4" cy="11.2" r="4.4"/></g>'
+            '<ellipse cx="24" cy="20" rx="20.5" ry="16" fill="url(#ay)"/>'
+            '<path d="M8 13 C13 4 26 2 35 6" stroke="#FFF0A8" stroke-width="3.2" fill="none" stroke-linecap="round" opacity=".95"/>'
+            '<g fill="#B9601A" opacity=".85"><circle cx="13" cy="20" r="1.9"/><circle cx="22" cy="13" r="1.6"/><circle cx="32" cy="18" r="1.9"/><circle cx="20" cy="27" r="1.7"/>'
+            '<circle cx="30" cy="28" r="1.6"/><circle cx="38" cy="23" r="1.4"/></g>'
+            '<g fill="#FFF0A8"><circle cx="25" cy="19" r="1.5"/><circle cx="16" cy="26" r="1.2"/><circle cx="36" cy="12" r="1.2"/></g>'
             '</g>')
-    daun = ('<path d="M34 54 C22 44 24 28 36 22 C46 30 44 46 34 54 Z" fill="#5DBB63"/><path d="M34 52 C34 42 36 32 36 24" stroke="#BFE9B8" stroke-width="1.6" fill="none"/>'
-            '<path d="M44 54 C38 40 46 26 60 24 C64 38 56 50 44 54 Z" fill="#7BCB6F"/><path d="M46 52 C50 42 56 34 60 26" stroke="#CFF0C4" stroke-width="1.6" fill="none"/>'
-            '<path d="M54 56 C54 46 66 40 76 44 C74 54 66 58 54 56 Z" fill="#4FAE5B"/>')
-    return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">'
-            '<path d="M32 24 c-4 -5 4 -8 0 -13 M50 20 c-4 -5 4 -8 0 -13 M68 24 c-4 -5 4 -8 0 -13" stroke="#FFB07A" stroke-width="3" fill="none" stroke-linecap="round"/>'
-            '<g transform="translate(78 2) scale(.45)">' + hati() + '</g>'
-            '<g transform="translate(2 24) scale(.62)">' + kilau() + '</g>'
-            '<g transform="translate(84 58) scale(.5)">' + kilau() + '</g>'
-            '<ellipse cx="50" cy="55" rx="42" ry="10" fill="#FFD27A"/>'
-            '<ellipse cx="50" cy="55" rx="37" ry="7.5" fill="#F39B2E"/>'
-            '<ellipse cx="50" cy="54" rx="30" ry="4" fill="#FFB84D" opacity=".7"/>'
+    daun = ('<path d="M36 56 C22 46 24 28 38 20 C48 30 46 48 36 56 Z" fill="url(#dn)"/><path d="M36 54 C36 42 38 32 38 22" stroke="#D9F5C6" stroke-width="1.8" fill="none"/>'
+            '<path d="M46 56 C40 40 48 24 64 22 C68 38 58 52 46 56 Z" fill="url(#dn)"/><path d="M48 54 C52 42 58 34 64 24" stroke="#D9F5C6" stroke-width="1.8" fill="none"/>'
+            '<path d="M56 58 C56 48 68 42 80 46 C78 56 68 60 56 58 Z" fill="#4FAE5B"/>')
+    return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' + defs +
+            '<path d="M32 22 c-4 -5 4 -8 0 -13 M50 18 c-4 -5 4 -8 0 -13 M68 22 c-4 -5 4 -8 0 -13" stroke="#FFF3D6" stroke-width="3.2" fill="none" stroke-linecap="round"/>'
+            '<g transform="translate(2 22) scale(.6)">' + kilau() + '</g>'
+            '<g transform="translate(86 14) scale(.5)">' + kilau() + '</g>'
+            '<ellipse cx="50" cy="55" rx="42" ry="10" fill="url(#rm)"/>'
+            '<ellipse cx="50" cy="55" rx="37" ry="7.5" fill="url(#ku)"/>'
+            '<ellipse cx="46" cy="53" rx="22" ry="2.6" fill="#FFB347" opacity=".6"/>'
             + daun +
-            '<path d="M60 58 C60 47 85 47 85 58 Z" fill="#FFFDF6" stroke="#F1E2C4" stroke-width="1.5"/>'
-            '<circle cx="67" cy="54" r="1.2" fill="#E6D6B6"/><circle cx="74" cy="52" r="1.2" fill="#E6D6B6"/><circle cx="79" cy="56" r="1.2" fill="#E6D6B6"/>'
+            '<path d="M62 58 C62 47 87 47 87 58 Z" fill="#FFFBF0" stroke="#F1DDB8" stroke-width="1.5"/>'
+            '<circle cx="69" cy="54" r="1.2" fill="#E6D2AA"/><circle cx="76" cy="52" r="1.2" fill="#E6D2AA"/><circle cx="81" cy="56" r="1.2" fill="#E6D2AA"/>'
             + ayam +
-            '<circle cx="26" cy="57" r="4.2" fill="#FF9A3C" stroke="#E57E1E" stroke-width="1"/><circle cx="26" cy="57" r="1.4" fill="#FFD9A0"/>'
-            '<circle cx="52" cy="59" r="2.6" fill="#E8403A"/><circle cx="52" cy="59" r=".9" fill="#FFB3A8"/>'
-            '<circle cx="44" cy="58.5" r="1.2" fill="#FFE9A0"/><circle cx="60" cy="59" r="1.1" fill="#FFE9A0"/><circle cx="34" cy="59" r="1" fill="#FFE9A0"/>'
-            '<path d="M9 54 Q50 72 91 54 C91 80 73 96 50 96 C27 96 9 80 9 54 Z" fill="#FF8E7A"/>'
-            '<path d="M9 54 Q50 72 91 54 C91 57 90.6 60 90 63 Q50 80 10 63 C9.4 60 9 57 9 54 Z" fill="#FFD27A"/>'
-            '<path d="M18 76 q5 -4 10 0 t10 0 t10 0 t10 0 t10 0 t10 0" stroke="#fff" stroke-width="2" fill="none" opacity=".6" stroke-linecap="round"/>'
+            '<path d="M18 58 L30 59 L24 52 Z" fill="#E8403A" stroke="#B82A22" stroke-width="1" stroke-linejoin="round"/>'
+            '<circle cx="52" cy="59" r="2.8" fill="#D9381E"/><circle cx="52" cy="59" r="1" fill="#FF9A80"/>'
+            '<g fill="#FFD66B"><circle cx="44" cy="58.5" r="1.2"/><circle cx="58" cy="59.5" r="1.1"/><circle cx="36" cy="59" r="1"/><circle cx="48" cy="60" r="1"/></g>'
+            '<g fill="#8A3A12"><circle cx="40" cy="57.5" r="1"/><circle cx="56" cy="57.8" r=".9"/><circle cx="62" cy="60" r=".9"/></g>'
+            '<path d="M9 54 Q50 72 91 54 C91 80 73 96 50 96 C27 96 9 80 9 54 Z" fill="url(#mk)"/>'
+            '<path d="M9 54 Q50 72 91 54 C91 57 90.6 60 90 63 Q50 80 10 63 C9.4 60 9 57 9 54 Z" fill="#FFC94D"/>'
+            '<path d="M18 76 q5 -4 10 0 t10 0 t10 0 t10 0 t10 0 t10 0" stroke="#FFD9A8" stroke-width="2" fill="none" opacity=".7" stroke-linecap="round"/>'
+            '<path d="M16 66 Q18 78 28 88" stroke="#fff" stroke-width="2.4" fill="none" opacity=".35" stroke-linecap="round"/>'
             + _wajah(50, 85, 1.0) + '</svg>')
 
 
@@ -192,61 +201,61 @@ def css() -> str:
 
 _CSS = """
 @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap');
-:root{--brand:#E4574B;--brand-d:#7B3220;--rose:#F59AB1;--rose-l:#FFE3EA;--butter:#FFE08A;--mint:#CBEBD7;--peach:#FFE4CE;
---cream:#FFF6EA;--cream2:#FFEBD6;--line:#F6D5BC;--ink:#4A2A1E;--muted:#9A7A68;--bg:#FFF6EA;--gold:#F6B23D;}
+:root{--brand:#D9501E;--brand-d:#5E2A12;--amber:#F29A2E;--gold:#F7B733;--sand:#FFE3B8;--sand2:#FFEBCB;
+--cream:#FFF1DB;--cream2:#FFE6C2;--line:#F0CC9C;--ink:#4A2410;--muted:#9A6F4E;--bg:#FFF1DB;--peach:#FFE3B8;}
 html,body,.stApp,[data-testid="stAppViewContainer"]{font-family:'Nunito',system-ui,sans-serif;color:var(--ink);}
 h1,h2,h3,h4,.kartu .besar,.hero h1,.grp-h,.pill-pesan{font-family:'Fredoka','Nunito',sans-serif;}
-.stApp{background-color:#FFF6EA;background-image:url("%POLA%");background-size:400px 400px;}
+.stApp{background-color:#FFEFD6;background-image:url("%POLA%");background-size:400px 400px;}
 [data-testid="stHeader"]{background:transparent;}
-.block-container{background:rgba(255,246,234,.55);border-radius:0 0 28px 28px;}
+.block-container{background:rgba(255,241,219,.55);border-radius:0 0 28px 28px;}
 h2,h3{color:var(--brand-d);}
 
-/* kepala halaman: tenda warung pastel + logo + stiker lauk */
+/* kepala halaman: senja hangat + tenda warung */
 .hero{position:relative;display:flex;align-items:center;gap:.9rem;text-align:left;padding:1.7rem 1rem 1.05rem;margin:.2rem 0 1.1rem;overflow:hidden;
- background:radial-gradient(circle at 12% 30%,rgba(255,255,255,.75),transparent 45%),linear-gradient(135deg,#FFD9B5 0%,#FFC9B0 48%,#FFB5BF 100%);
- border-radius:26px;border:3px solid #fff;box-shadow:0 8px 22px rgba(228,87,75,.22),0 0 0 2px #FFC7A8;}
+ background:radial-gradient(circle at 14% 35%,rgba(255,236,170,.9),transparent 48%),linear-gradient(160deg,#FFC24F 0%,#FF9232 45%,#E2551F 100%);
+ border-radius:26px;border:3px solid #FFE9BF;box-shadow:0 8px 22px rgba(190,70,20,.35),0 0 0 2px #E8742A;}
 .hero::before{content:"";position:absolute;left:0;right:0;top:0;height:.7rem;
- background:repeating-linear-gradient(90deg,#FF8E7A 0 1.2rem,#FFF6EA 1.2rem 2.4rem);}
+ background:repeating-linear-gradient(90deg,#B8381A 0 1.2rem,#FFF1DB 1.2rem 2.4rem);}
 .hero::after{content:"";position:absolute;left:0;right:0;top:.7rem;height:.6rem;
- background:radial-gradient(circle at 1.2rem 0,#FF8E7A .6rem,transparent .62rem) 0 0/2.4rem .6rem repeat-x,
-            radial-gradient(circle at 2.4rem 0,#FFF6EA .6rem,transparent .62rem) 0 0/2.4rem .6rem repeat-x;}
-.hero .stiker{position:absolute;right:-.2rem;top:1.5rem;width:42%;opacity:.9;pointer-events:none;}
+ background:radial-gradient(circle at 1.2rem 0,#B8381A .6rem,transparent .62rem) 0 0/2.4rem .6rem repeat-x,
+            radial-gradient(circle at 2.4rem 0,#FFF1DB .6rem,transparent .62rem) 0 0/2.4rem .6rem repeat-x;}
+.hero .stiker{display:none;}
 .hero .stiker img{display:block;width:100%;height:auto;}
-.hero .logo{position:relative;flex:0 0 auto;width:5.4rem;margin-top:.5rem;filter:drop-shadow(0 4px 5px rgba(160,60,40,.25));}
+.hero .logo{position:relative;flex:0 0 auto;width:5.6rem;margin-top:.5rem;filter:drop-shadow(0 4px 5px rgba(120,40,10,.4));}
 .hero .logo img{display:block;width:100%;height:auto;}
 .hero .tt{position:relative;flex:1;margin-top:.5rem;}
-.hero h1{margin:0;padding:0;font-size:1.65rem;font-weight:700;letter-spacing:.05em;color:#fff;line-height:1.1;
- text-shadow:0 2px 0 #E4574B,0 0 12px rgba(228,87,75,.35);-webkit-text-stroke:.5px #E4574B;}
-.hero .sub{display:inline-block;margin-top:.45rem;padding:.14rem .8rem;border-radius:999px;background:#fff;color:var(--brand);
- font-weight:800;font-size:.72rem;letter-spacing:.14em;box-shadow:0 2px 0 #FFC7A8;}
-.hero .sub2{margin-top:.4rem;font-size:.76rem;color:var(--brand-d);font-weight:700;}
+.hero h1{margin:0;padding:0;font-size:1.65rem;font-weight:700;letter-spacing:.05em;color:#FFF8E6;line-height:1.1;
+ text-shadow:0 2px 0 #B8381A,0 3px 10px rgba(120,30,5,.45);-webkit-text-stroke:.5px #B8381A;}
+.hero .sub{display:inline-block;margin-top:.45rem;padding:.14rem .8rem;border-radius:999px;background:#FFF1DB;color:var(--brand);
+ font-weight:800;font-size:.72rem;letter-spacing:.14em;box-shadow:0 2px 0 #B8381A;}
+.hero .sub2{margin-top:.4rem;font-size:.78rem;color:#5E1E08;font-weight:800;}
 
 /* kartu & komponen */
-.kartu,.rekap-wrap,.rk-akhir,.psn{background:#FFFDF8;border:2px solid var(--line);border-radius:20px;box-shadow:0 4px 0 rgba(246,213,188,.7);}
+.kartu,.rekap-wrap,.rk-akhir,.psn{background:#FFFAF0;border:2px solid var(--line);border-radius:20px;box-shadow:0 4px 0 rgba(224,160,90,.45);}
 .kartu .besar{color:var(--brand);}
 .kartu small,.cap,.rk-akhir .cap2{color:var(--muted);}
 .judul-sec{flex-wrap:wrap;gap:.1rem .6rem;} .judul-sec h3{white-space:nowrap;font-size:1.05rem!important;}
-.judul-sec h3::before{content:"🍤 ";}
-.grp-h{background:linear-gradient(135deg,#FF8E7A,#F59AB1);color:#fff;border-radius:999px;padding:.45rem 1rem;box-shadow:0 3px 0 #F6B8A6;}
-.grp-h span{background:rgba(255,255,255,.35);}
-.stButton>button,.stFormSubmitButton>button{border-radius:999px;border:2px solid var(--line);background:#FFFDF8;color:var(--brand-d);font-weight:800;}
-.stButton>button[kind="primary"],.stFormSubmitButton>button[kind="primary"]{background:linear-gradient(180deg,#FF7A68,#E4574B);
- border-color:#C8453A;color:#fff;box-shadow:0 3px 0 #C8453A;}
+.judul-sec h3::before{content:"🍗 ";}
+.grp-h{background:linear-gradient(135deg,#E2551F,#F29A2E);color:#fff;border-radius:999px;padding:.45rem 1rem;box-shadow:0 3px 0 #B8381A;}
+.grp-h span{background:rgba(255,255,255,.3);}
+.stButton>button,.stFormSubmitButton>button{border-radius:999px;border:2px solid var(--line);background:#FFFAF0;color:var(--brand-d);font-weight:800;}
+.stButton>button[kind="primary"],.stFormSubmitButton>button[kind="primary"]{background:linear-gradient(180deg,#F58A30,#D9501E);
+ border-color:#B13E12;color:#fff;box-shadow:0 3px 0 #B13E12;}
 .stButton>button:active{transform:translateY(2px);}
-.stTextInput input,div[data-baseweb="select"]>div,.stNumberInput input,[data-baseweb="input"]{background:#FFF9F0!important;border-radius:16px!important;}
+.stTextInput input,div[data-baseweb="select"]>div,.stNumberInput input,[data-baseweb="input"]{background:#FFF7E8!important;border-radius:16px!important;}
 .stTextInput input{border:2px solid var(--line)!important;}
 .stTabs [data-baseweb="tab-highlight"]{background:var(--brand)!important;}
 .stTabs [aria-selected="true"]{color:var(--brand)!important;}
-[data-testid="stDialog"]>div,div[role="dialog"]{border-radius:26px!important;background:#FFFAF2!important;}
+[data-testid="stDialog"]>div,div[role="dialog"]{border-radius:26px!important;background:#FFF8EA!important;}
 .stCheckbox [data-baseweb="checkbox"] span:first-child{border-radius:7px;}
 
 /* tabel kasbon */
-table.rekap th{background:var(--peach);color:var(--brand-d);}
-table.rekap .nama,table.rekap .tot{background:#FFEEDC;color:var(--ink);}
+table.rekap th{background:var(--sand);color:var(--brand-d);}
+table.rekap .nama,table.rekap .tot{background:var(--sand2);color:var(--ink);}
 table.rekap td,table.rekap th{border-color:var(--line);}
-table.rekap td.me{background:#FFF3C4;}
+table.rekap td.me{background:#FFEFB8;}
 table.rekap th.hari-ini{box-shadow:inset 0 -3px 0 var(--brand);}
-.pill-pesan{background:linear-gradient(180deg,#FF7A68,#E4574B);box-shadow:0 2px 0 #C8453A;border-radius:999px;}
+.pill-pesan{background:linear-gradient(180deg,#F58A30,#D9501E);box-shadow:0 2px 0 #B13E12;border-radius:999px;}
 table.rekap td.lunas-sel{background:#D8F3E2!important;color:#1E7F4B;}
 table.rekap td.tot.lunas-tot{background:#BDEBD0!important;color:#17653B;}
 /* libur: kolom merah muda, tulisan merah menyala */
@@ -255,5 +264,5 @@ table.rekap td.libur{background:#FFE3EA!important;color:#E0002B!important;font-w
 .libur-info{background:#FFE3EA;border-color:#F8A9BE;color:#B0102A;}
 .rk-akhir tr.tot td{border-top:2px dashed var(--line);}
 .rk-akhir td.q{color:var(--brand);}
-.psn.s-rev{background:#FFF4C9;border-color:#F6D77A;}
+.psn.s-rev{background:#FFF1C2;border-color:#F2CF6A;}
 """
