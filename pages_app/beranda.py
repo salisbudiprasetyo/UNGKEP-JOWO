@@ -81,10 +81,11 @@ def tabel_html(df: pd.DataFrame, nama_semua: list[str], hari: list[date], me: st
     """Tabel kasbon. Sel yang boleh diklik diberi data-c (dibaca skrip kecil di bawah)."""
     hari_ini = logic.today_wib()
     pivot = df.groupby(["pelanggan", "tgl"])["subtotal"].sum().to_dict() if not df.empty else {}
-    lunas = {}
+    lunas, sisa_orang = {}, {}   # sisa_orang = kasbon yang belum dibayar
     if not df.empty:
         for p, g in df.groupby("pelanggan"):
             lunas[p] = bool((g["status_bayar"] == "Lunas").all())
+            sisa_orang[p] = float(g.loc[g["status_bayar"] != "Lunas", "subtotal"].sum())
 
     lunas_hari = set()
     sisa_hari = {}   # hari yang baru sebagian dibayar -> sisa
@@ -141,7 +142,13 @@ def tabel_html(df: pd.DataFrame, nama_semua: list[str], hari: list[date], me: st
         semua_lunas = bool(total and lunas.get(n))
         tklik = (mine or admin) and total
         attr = f' data-c="t|{kode}|{html.escape(n, quote=True)}"' if tklik else ""
-        isi_tot = (f'<b>LUNAS</b><small>{logic.rupiah(total)}</small>' if semua_lunas else (logic.rupiah(total) if total else "-"))
+        sisa_n = sisa_orang.get(n, 0.0)
+        if semua_lunas:
+            isi_tot = f'<b>LUNAS</b><small>beli {logic.rupiah(total)}</small>'
+        elif total and sisa_n < total:      # sebagian sudah dibayar: yang ditampilkan = kasbon yang belum dibayar
+            isi_tot = f'<b>{logic.rupiah(sisa_n)}</b><small>dari {logic.rupiah(total)}</small>'
+        else:
+            isi_tot = logic.rupiah(total) if total else "-"
         h.append(f'<td class="tot{" klik" if tklik else ""}{" lunas-tot" if semua_lunas else ""}"{attr}>{isi_tot}</td></tr>')
     h.append("</tbody></table></div>")
     return "".join(h)
@@ -192,12 +199,12 @@ tgl_buka = [_buka] if _buka else []
 @st.fragment(run_every=JEDA)
 def kartu_live():
     df_ = data_periode(start, end)
-    total_saya = float(df_.loc[df_["pelanggan"] == me, "subtotal"].sum()) if not df_.empty else 0.0
+    total_saya = float(df_.loc[(df_["pelanggan"] == me) & (df_["status_bayar"] != "Lunas"), "subtotal"].sum()) if not df_.empty else 0.0
     st.markdown(
-        f'<div class="kartu"><small>Halo, <b>{html.escape(me)}</b> · kasbon periode ini</small>'
+        f'<div class="kartu"><small>Halo, <b>{html.escape(me)}</b> · kasbon yang belum dibayar</small>'
         f'<div class="besar">{logic.rupiah(total_saya)}</div>'
         f'<small>Dibayar tanggal {logic.CUTOFF_HARI} {logic.BULAN[end.month]} {end.year}</small></div>', unsafe_allow_html=True)
-    if total_saya > 0 and st.button("Lihat tagihan / Bayar sekarang", key="btn_tagihan", width="stretch"):
+    if st.button("Lihat tagihan / Bayar sekarang" if total_saya > 0 else "Lihat riwayat tagihan", key="btn_tagihan", width="stretch"):
         st.session_state["_open"] = ("tagihan", kode, me)
         st.rerun()
 
@@ -218,6 +225,10 @@ if klik:
         _tg_ok = date.fromisoformat(a1) if jenis == "d" else None
     except ValueError:
         pass
+    if jenis == "r":      # baris rekap pesanan: siapa saja yang memesan
+        _tgl_r = orders.tanggal_aktif(store)
+        if _tgl_r:
+            st.session_state["_open"] = ("siapa", _tgl_r.isoformat(), klik.split("#")[0].split("|", 1)[1])
     if me and jenis in ("d", "t") and (a2 == me or admin or (jenis == "d" and _tg_ok and (a2, _tg_ok) in punyaku)):
         if jenis == "t":
             st.session_state["_open"] = ("tagihan", a1, a2)
@@ -272,7 +283,9 @@ else:
     components.html(_js, height=0)
 
 # buka jendela yang diminta (dari ketukan sel atau dari tombol di dalam jendela lain)
-if (spec := st.session_state.pop("_open", None)) and me:
+if (spec := st.session_state.pop("_open", None)) and spec[0] == "siapa":
+    ui.dialog_siapa(spec[1], spec[2], admin=admin)
+elif spec and me:
     jenis = spec[0]
     if jenis == "pesan":
         ui.dialog_pesan(spec[1], spec[2], langsung=bool(spec[3]) and admin)
@@ -303,7 +316,7 @@ def hari_ini_live():
     if tg:
         ui.render_hari_ini(store, tg, me, admin)
     else:
-        st.markdown('<div class="kartu"><small>Belum ada menu. Admin belum mengunggah menu.</small></div>', unsafe_allow_html=True)
+        st.markdown('<div class="kartu"><small>Belum ada menu yang dibuka. Pesanan hari ini akan tampil lagi setelah admin mengunggah menu berikutnya.</small></div>', unsafe_allow_html=True)
 
 
 hari_ini_live()

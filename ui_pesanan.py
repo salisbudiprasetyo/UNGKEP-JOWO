@@ -292,10 +292,11 @@ def dialog_tagihan(kode: str, nama: str, admin: bool = False):
     if not t["per_hari"]:
         st.info("Belum ada pembelian pada periode ini.")
         return
-    rows = "".join(f"<tr><td>{label_tgl(date.fromisoformat(d))}</td><td>{logic.rupiah(v['total'])}{' ✓' if v['lunas'] else ''}</td></tr>"
+    rows = "".join(f"<tr><td>{label_tgl(date.fromisoformat(d))}</td><td>{logic.rupiah(v['total'])}{' ✓ lunas' if v['lunas'] else (' · sisa ' + logic.rupiah(v['sisa']) if v['sisa'] < v['total'] else '')}</td></tr>"
                    for d, v in t["per_hari"].items())
     st.markdown(f'<table class="mini rinci"><tr><th>Tanggal</th><th>Total</th></tr>{rows}'
-                f'<tr class="gt"><td>TOTAL KASBON</td><td>{logic.rupiah(t["total"])}</td></tr></table>', unsafe_allow_html=True)
+                f'<tr><td>Total pembelian</td><td>{logic.rupiah(t["total"])}</td></tr>'
+                f'<tr class="gt"><td>TOTAL KASBON (belum dibayar)</td><td>{logic.rupiah(t["sisa"])}</td></tr></table>', unsafe_allow_html=True)
     stat = payments.status_periode(store, nama, kode)
     if t["lunas"]:
         st.success("✓ LUNAS")
@@ -450,60 +451,77 @@ def _kartu_html(o: dict, no: int, me: str | None) -> str:
             + info + "</div>")
 
 
-def _rekap_html(orders_: list[dict]) -> str:
-    if not orders_:
-        return ""
-    chips = "".join(f"<span>{_esc(n)} <b>{q}</b></span>" for n, q in orders.rekap(orders_).items())
-    return f'<div class="rk">{chips}</div>'
-
-
-def _rekap_akhir_html(semua: list[dict], admin: bool) -> str:
+def _rekap_html(semua: list[dict], admin: bool) -> str:
+    """Rekap pesanan hari ini. Setiap baris bisa diketuk untuk melihat siapa saja yang memesan (dan menandai dibungkus)."""
     paket = lauk_saja = nasi_saja = 0
     for o in semua:
-        nasi = sum(i["qty"] for i in o["items"] if i["kategori"] == "Nasi")
-        lauk = sum(i["qty"] for i in o["items"] if i["kategori"] in orders.LAUK)
-        p = min(nasi, lauk)
-        paket += p
-        lauk_saja += lauk - p
-        nasi_saja += nasi - p
-    rek = orders.rekap(semua)
+        p, l, n = orders.porsi_orang(o)
+        paket, lauk_saja, nasi_saja = paket + p, lauk_saja + l, nasi_saja + n
     per_kat: dict[str, list[tuple[str, int]]] = {}
     kat_item = {i["item"]: i["kategori"] for o in semua for i in o["items"]}
-    for nm, q in rek.items():
+    for nm, q in orders.rekap(semua).items():
         per_kat.setdefault(kat_item[nm], []).append((nm, q))
-    rows = ['<tr class="sec"><td colspan="2">PORSI</td></tr>',
-            f"<tr><td>Nasi + Lauk (paket)</td><td>{paket}</td></tr>",
-            f"<tr><td>Lauk saja (tanpa nasi)</td><td>{lauk_saja}</td></tr>"]
+
+    def baris(label: str, q: int, kunci: str) -> str:
+        return (f'<tr class="klik" data-c="r|{html.escape(kunci, quote=True)}"><td>{_esc(label)}</td>'
+                f'<td class="q">{q}</td><td class="pn">›</td></tr>')
+
+    rows = ['<tr class="sec"><td colspan="3">PORSI</td></tr>']
+    if paket:
+        rows.append(baris("Nasi + Lauk (paket)", paket, "paket"))
+    if lauk_saja:
+        rows.append(baris("Lauk saja (tanpa nasi)", lauk_saja, "lauk"))
     if nasi_saja:
-        rows.append(f"<tr><td>Nasi saja (tanpa lauk)</td><td>{nasi_saja}</td></tr>")
+        rows.append(baris("Nasi saja (tanpa lauk)", nasi_saja, "nasi"))
     for kat in KATEGORI:
-        if kat in per_kat:
-            rows.append(f'<tr class="sec"><td colspan="2">{kat.upper()}</td></tr>')
-            rows += [f"<tr><td>{_esc(n)}</td><td>{q}</td></tr>" for n, q in per_kat[kat]]
-    rows.append(f'<tr class="tot"><td>Pelanggan</td><td>{len(semua)} orang</td></tr>')
+        if kat in per_kat and kat != "Nasi":
+            rows.append(f'<tr class="sec"><td colspan="3">{kat.upper()}</td></tr>')
+            rows += [baris(n, q, "i:" + n) for n, q in per_kat[kat]]
+    belum = sum(1 for o in semua if o["status"] != "Dibungkus")
+    rows.append(f'<tr class="tot"><td>Pelanggan</td><td class="q" colspan="2">{len(semua)} orang</td></tr>')
+    rows.append(f'<tr class="tot"><td>Sudah dibungkus</td><td class="q" colspan="2">{len(semua) - belum} / {len(semua)}</td></tr>')
     if admin:
-        rows.append(f'<tr class="tot"><td>Total tagihan</td><td>{logic.rupiah(sum(o["total"] for o in semua))}</td></tr>')
-    return f'<div class="rk-akhir"><h4>REKAP TOTAL HARI INI</h4><table>{"".join(rows)}</table></div>'
+        rows.append(f'<tr class="tot"><td>Total tagihan</td><td class="q" colspan="2">{logic.rupiah(sum(o["total"] for o in semua))}</td></tr>')
+    return (f'<div class="rk-akhir"><h4>REKAP PESANAN</h4><div class="cap2">Ketuk baris untuk melihat siapa yang memesan</div>'
+            f'<table>{"".join(rows)}</table></div>')
+
+
+def _revisi_html(o: dict) -> str:
+    """Kartu permintaan revisi: pesanan lama vs baru, perubahan disorot, plus catatan otomatis."""
+    rev = o["revisi"]
+    lama = {i["item"]: i["qty"] for i in o["items"]}
+    if rev["jenis"] == "batal":
+        baru = {}
+        notes = ["Pelanggan meminta pesanan dibatalkan"]
+    else:
+        baru = {i["item"]: i["qty"] for i in rev["items"]}
+        notes = orders.catatan_perubahan(o["items"], rev["items"], o["catatan"], rev["catatan"])
+    rows = []
+    for nm in list(dict.fromkeys(list(lama) + list(baru))):
+        a, b = lama.get(nm), baru.get(nm)
+        kls = "tambah" if a is None else "hapus" if b is None else "ubah" if a != b else ""
+        rows.append(f'<tr class="{kls}"><td>{_esc(nm)}</td><td class="c">{a if a is not None else "—"}</td>'
+                    f'<td class="c">{b if b is not None else "—"}</td></tr>')
+    cat = ""
+    if rev["jenis"] != "batal" and rev["catatan"]:
+        cat = f'<div class="cat">📝 Catatan baru: {_esc(rev["catatan"])}</div>'
+    return (f'<div class="psn s-rev"><div class="r1"><span class="nm">{_esc(o["nama"]).upper()}</span>'
+            f'<span class="chip s-rev">MINTA {"BATAL" if rev["jenis"] == "batal" else "REVISI"}</span></div>'
+            f'<table class="rev"><tr><th>Item</th><th class="c">Sebelum</th><th class="c">Sesudah</th></tr>{"".join(rows)}</table>'
+            f'<div class="notes"><b>Perubahan:</b> {"; ".join(_esc(n) for n in notes) or "—"}</div>{cat}</div>')
 
 
 _MEMO_HI: dict = {}
 
 
 def _html_hari_ini(store, tgl: date, me: str | None, admin: bool) -> dict:
-    """Bagian-bagian HTML 'Pesanan Hari Ini' (satu string per bagian) agar cukup beberapa elemen saja di layar."""
     semua = orders.daftar_pesanan(store, tgl)
     tahun = f"{tgl.day} {logic.BULAN[tgl.month]} {tgl.year}"
     kepala = (f'<div class="judul-sec"><h3>PESANAN HARI INI</h3><span class="tg">{HARI[tgl.weekday()]}, {tahun}</span></div>')
     if not semua:
         return {"kepala": kepala, "kosong": '<div class="kartu"><small>Belum ada yang memesan untuk menu ini.</small></div>'}
-    grup = {}
-    for k in (1, 2, 3):
-        g = [o for o in semua if o["kelompok"] == k]
-        grup[k] = {"orders": g,
-                   "kepala": f'<div class="grp-h">{k}. {KELOMPOK[k]}<span>{len(g)} orang</span></div>',
-                   "rekap": _rekap_html(g),
-                   "html": "".join(_kartu_html(o, no, me) for no, o in enumerate(g, 1)) if g else '<div class="kosong-info">Belum ada pesanan.</div>'}
-    return {"kepala": kepala, "grup": grup, "akhir": _rekap_akhir_html(semua, admin), "semua": semua}
+    return {"kepala": kepala, "semua": semua, "akhir": _rekap_html(semua, admin),
+            "revisi": [(o, _revisi_html(o)) for o in semua if o["revisi"]]}
 
 
 def _kontrol_tutup(store, tgl: date, admin: bool) -> None:
@@ -538,38 +556,52 @@ def render_hari_ini(store, tgl: date, me: str | None, admin: bool):
         if st.button("Ubah / batalkan pesanan saya", key="ubahku", width="stretch"):
             st.session_state["_open"] = ("pesan", tgl.isoformat(), me, False)
             st.rerun()
-    for k in (1, 2, 3):
-        g = bag["grup"][k]
-        if admin and g["orders"]:
-            st.html(g["kepala"])
-            for no, o in enumerate(g["orders"], 1):
-                st.html(_kartu_html(o, no, me))
-                _aksi_admin(store, tgl, o, f"{k}_{no}")
-            st.html(g["rekap"])
-        else:
-            st.html(g["kepala"] + g["html"] + g["rekap"])
+    if bag["revisi"]:
+        st.html(f'<div class="grp-h">PERMINTAAN REVISI<span>{len(bag["revisi"])} orang</span></div>')
+        for no, (o, kartu) in enumerate(bag["revisi"], 1):
+            st.html(kartu)
+            if admin:
+                with st.container(key=f"aksi_rev_{no}"):
+                    c1, c2 = st.columns(2)
+                    if c1.button("Konfirmasi revisi", key=f"kf_{no}", type="primary", width="stretch"):
+                        orders.konfirmasi_revisi(store, tgl, o["nama"])
+                        st.rerun()
+                    if c2.button("Tolak revisi", key=f"tl_{no}", width="stretch"):
+                        orders.tolak_revisi(store, tgl, o["nama"])
+                        st.rerun()
     st.html(bag["akhir"])
     _kontrol_tutup(store, tgl, admin)
 
 
-def _aksi_admin(store, tgl: date, o: dict, kunci: str):
-    nama = o["nama"]
-    with st.container(key=f"aksi_{kunci}"):
-        if o["revisi"]:
-            c1, c2 = st.columns(2)
-            if c1.button("Konfirmasi", key=f"kf_{kunci}", type="primary", width="stretch"):
-                orders.konfirmasi_revisi(store, tgl, nama)
-                st.rerun()
-            if c2.button("Lihat pesanan sebelumnya", key=f"lh_{kunci}", width="stretch"):
-                st.session_state["_open"] = ("revisi", tgl.isoformat(), nama)
+@st.dialog("Siapa yang memesan")
+def dialog_siapa(tgl_iso: str, kunci: str, admin: bool = False):
+    store = services.get_store()
+    tgl = date.fromisoformat(tgl_iso)
+    semua = orders.daftar_pesanan(store, tgl)
+    judul = {"paket": "Nasi + Lauk (paket)", "lauk": "Lauk saja (tanpa nasi)", "nasi": "Nasi saja (tanpa lauk)"}.get(kunci, kunci[2:])
+    daftar = orders.siapa(semua, kunci)
+    st.markdown(f"**{_esc(judul)}** · {sum(q for _, q in daftar)} porsi · {len(daftar)} orang")
+    if not daftar:
+        st.info("Belum ada yang memesan.")
+        return
+    belum = [o for o, _ in daftar if o["status"] != "Dibungkus"]
+    for no, (o, q) in enumerate(daftar, 1):
+        bungkus = o["status"] == "Dibungkus"
+        c = st.columns([3, 1.4] if admin else [3, 1.4], vertical_alignment="center", gap="small")
+        extra = " · ⏳ revisi" if o["revisi"] else ""
+        c[0].markdown(f'**{no}. {_esc(o["nama"])}** ×{q}{extra}' + ("  ✓" if bungkus else ""))
+        if admin:
+            if c[1].button("✓ Dibungkus" if bungkus else "Bungkus", key=f"sq_{kunci}_{no}", width="stretch",
+                           type="secondary" if bungkus else "primary"):
+                orders.set_dibungkus(store, tgl, o["nama"], not bungkus)
+                st.session_state["_open"] = ("siapa", tgl_iso, kunci)
                 st.rerun()
         else:
-            c1, c2 = st.columns(2)
-            bungkus = o["status"] == "Dibungkus"
-            if c1.button("✓ Dibungkus" if bungkus else "Bungkus", key=f"bk_{kunci}", width="stretch",
-                         type="secondary"):
-                orders.set_dibungkus(store, tgl, nama, not bungkus)
-                st.rerun()
-            if c2.button("Ubah", key=f"ub_{kunci}", width="stretch"):
-                st.session_state["_open"] = ("pesan", tgl.isoformat(), nama, True)
-                st.rerun()
+            c[1].caption("dibungkus" if bungkus else "")
+    if admin and belum:
+        if st.button(f"Bungkus semua ({len(belum)})", key=f"sq_all_{kunci}", width="stretch"):
+            for o in belum:
+                orders.set_dibungkus(store, tgl, o["nama"], True)
+            st.session_state["_open"] = ("siapa", tgl_iso, kunci)
+            st.rerun()
+    st.caption("Status bungkus berlaku untuk seluruh pesanan orang itu.")

@@ -93,10 +93,15 @@ def tanggal_menu(store) -> list[date]:
     return sorted(d for d in ds if d not in libur)
 
 
-def tanggal_aktif(store) -> date | None:
-    """Tanggal yang ditampilkan di 'Pesanan Hari Ini' = menu terbaru yang sudah diunggah admin."""
-    ds = tanggal_menu(store)
-    return ds[-1] if ds else None
+def tanggal_aktif(store, sekarang=None) -> date | None:
+    """Tanggal yang ditampilkan di 'Pesanan Hari Ini': menu terdekat yang belum lewat. Menu hari ini hilang
+    mulai jam UNGGAH_BATAS_JAM (13:00 WIB); sesudahnya hanya menu hari berikutnya (bila sudah diunggah) yang tampil."""
+    sekarang = sekarang or logic.now_wib()
+    hari = sekarang.date()
+    for d in tanggal_menu(store):
+        if d > hari or (d == hari and sekarang.hour < logic.UNGGAH_BATAS_JAM):
+            return d
+    return None
 
 
 def bisa_pesan(store, tgl: date, sekarang=None) -> bool:
@@ -378,6 +383,45 @@ def daftar_pesanan(store, tgl: date) -> list[dict]:
         _MEMO_DP.clear()
     _MEMO_DP[kunci] = hasil
     return hasil
+
+
+def porsi_orang(o: dict) -> tuple[int, int, int]:
+    """(paket nasi+lauk, lauk saja, nasi saja) untuk satu pesanan."""
+    nasi = sum(i["qty"] for i in o["items"] if i["kategori"] == "Nasi")
+    lauk = sum(i["qty"] for i in o["items"] if i["kategori"] in LAUK)
+    p = min(nasi, lauk)
+    return p, lauk - p, nasi - p
+
+
+def siapa(semua: list[dict], kunci: str) -> list[tuple[dict, int]]:
+    """Pesanan yang masuk baris rekap `kunci` ('paket' | 'lauk' | 'nasi' | 'i:<nama item>') beserta jumlahnya."""
+    out = []
+    for o in semua:
+        if kunci in ("paket", "lauk", "nasi"):
+            q = porsi_orang(o)[("paket", "lauk", "nasi").index(kunci)]
+        else:
+            nm = kunci[2:]
+            q = sum(i["qty"] for i in o["items"] if i["item"] == nm)
+        if q:
+            out.append((o, q))
+    return out
+
+
+def catatan_perubahan(lama: list[dict], baru: list[dict], cat_lama: str = "", cat_baru: str = "") -> list[str]:
+    """Catatan otomatis perubahan revisi, mis. 'Ayam Geprek 1 → 2', 'Es teh dihapus', 'Kerupuk ditambah ×2'."""
+    a = {i["item"]: i["qty"] for i in lama}
+    b = {i["item"]: i["qty"] for i in baru}
+    out = []
+    for nm in list(dict.fromkeys(list(a) + list(b))):
+        if nm not in a:
+            out.append(f"{nm} ditambah ×{b[nm]}")
+        elif nm not in b:
+            out.append(f"{nm} dihapus")
+        elif a[nm] != b[nm]:
+            out.append(f"{nm} {a[nm]} → {b[nm]}")
+    if (cat_lama or "") != (cat_baru or ""):
+        out.append(f"Catatan diubah: {cat_baru}" if cat_baru else "Catatan dihapus")
+    return out
 
 
 def rekap(orders: list[dict]) -> "OrderedDict[str, int]":

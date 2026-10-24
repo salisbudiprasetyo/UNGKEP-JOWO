@@ -62,3 +62,9 @@ Mengubah Menu master tidak mengubah menu harian yang sudah diunggah. Setelah men
 
 ## Jam unggah menu & Close order
 Tanggal bawaan di tab Menu harian: diunggah sebelum 13:00 WIB = menu hari ini, setelahnya = menu besok (tanggal tetap bisa diganti). Menu tanggal yang belum ada pesanan bisa dihapus. Tombol **Close order** di bawah rekap Pesanan Hari Ini menutup order: pelanggan tidak bisa memesan/mengubah/membatalkan; admin bisa **Buka kembali order**.
+
+## Pesanan Hari Ini (rekap & revisi)
+- Tampil untuk menu terdekat yang belum lewat. Menu hari ini hilang mulai jam 13:00 WIB (dan tidak tampil bila hari libur/belum ada menu berikutnya).
+- Kartu hanya muncul untuk **permintaan revisi** (sebelum/sesudah, perubahan disorot, catatan otomatis; admin: Konfirmasi revisi / Tolak revisi).
+- **Rekap pesanan** bisa diketuk per baris (paket, lauk saja, tiap menu) untuk melihat siapa yang memesan; admin menandai "Bungkus" per orang atau "Bungkus semua".
+- Kolom TOTAL di tabel dan "TOTAL KASBON" di jendela tagihan = kasbon yang **belum dibayar**.

@@ -149,3 +149,23 @@ table.rekap td.tot.lunas-tot small{display:block;font-weight:600;font-size:.66re
 /* hari yang baru sebagian dibayar */
 table.rekap td.lunas-sbg{background:#eef8ee;box-shadow:inset 0 0 0 1px #9fd3a5}
 table.rekap td.lunas-sbg small{display:block;font-size:.55rem;color:#2e7d32;line-height:1}
+
+/* rekap pesanan yang bisa diketuk */
+.rk-akhir .cap2{font-size:.72rem;color:var(--muted);margin:-.2rem 0 .3rem}
+.rk-akhir table{width:100%;border-collapse:collapse}
+.rk-akhir td{padding:.45rem .3rem;border-bottom:1px dashed #E7DCCB;font-size:.9rem}
+.rk-akhir td.q{text-align:right;font-weight:800;color:var(--brand-d);white-space:nowrap}
+.rk-akhir td.pn{width:1rem;text-align:right;color:var(--muted);font-weight:800}
+.rk-akhir tr.sec td{font-size:.68rem;letter-spacing:.1em;font-weight:800;color:#7a6a58;border-bottom:none;padding-top:.7rem}
+.rk-akhir tr.klik{cursor:pointer} .rk-akhir tr.klik:active td{background:#FFF1E2}
+.rk-akhir tr.tot td{font-weight:800;border-top:1px solid var(--brand-d);border-bottom:none}
+/* kartu revisi */
+table.rev{width:100%;border-collapse:collapse;margin:.4rem 0;font-size:.88rem}
+table.rev th{font-size:.68rem;letter-spacing:.06em;color:#7a6a58;text-align:left;padding:.2rem .3rem}
+table.rev td{padding:.3rem;border-top:1px solid #EADFA8}
+table.rev th.c,table.rev td.c{text-align:center}
+table.rev tr.tambah td{background:#DCFCE7;font-weight:800;color:#166534}
+table.rev tr.hapus td{background:#FEE2E2;font-weight:800;color:#991B1B;text-decoration:line-through}
+table.rev tr.ubah td{background:#FDE68A;font-weight:800}
+.psn .notes{font-size:.82rem;margin-top:.2rem;color:#7C2D12}
+.chip.s-rev{background:#FDE68A;color:#92400E}
