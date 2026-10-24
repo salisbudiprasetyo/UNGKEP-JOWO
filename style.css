@@ -171,36 +171,3 @@ table.rev tr.ubah td{background:#FDE68A;font-weight:800}
 .chip.s-rev{background:#FDE68A;color:#92400E}
 
 
-/* ===================== TEMA WARUNG (merah gelap, hangat) ===================== */
-:root{--brand:#A3201A;--brand-d:#5C1410;--gold:#D9A441;--cream:#FFF4E2;--cream2:#FBE7C6;--line:#E8D5B7;--bg:#FBF3E4;}
-.stApp{background-color:#FBF3E4;background-image:url("data:image/svg+xml;utf8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22260%22 height=%22260%22 viewBox=%220 0 260 260%22 fill=%22none%22 stroke=%22%23A3201A%22 stroke-width=%222.2%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 opacity=%22.10%22%3E%0A%3Cg transform=%22translate(22,26) rotate(-18)%22%3E%3Cpath d=%22M0 10 C18 -6 44 4 50 22 C38 18 20 22 0 10Z%22/%3E%3Cpath d=%22M0 10 C-6 6 -8 2 -6 -2%22/%3E%3C/g%3E%0A%3Cg transform=%22translate(150,18)%22%3E%3Cpath d=%22M10 40 C-6 40 -6 14 12 10 C22 8 34 14 36 26 C38 40 24 46 10 40Z%22/%3E%3Ccircle cx=%2234%22 cy=%228%22 r=%225%22/%3E%3Ccircle cx=%2242%22 cy=%2212%22 r=%224%22/%3E%3Cpath d=%22M14 30 L22 24%22/%3E%3C/g%3E%0A%3Cg transform=%22translate(34,112)%22%3E%3Cpath d=%22M0 14 H52 C52 34 40 44 26 44 C12 44 0 34 0 14Z%22/%3E%3Cpath d=%22M8 8 C14 -2 22 0 26 6 C30 -2 40 0 44 8%22/%3E%3C/g%3E%0A%3Cg transform=%22translate(160,104) rotate(14)%22%3E%3Cpath d=%22M0 0 C14 -10 28 2 24 14 C20 24 6 22 0 14Z%22/%3E%3Cpath d=%22M4 8 C10 8 16 10 20 14%22/%3E%3C/g%3E%0A%3Cg transform=%22translate(20,196) rotate(-8)%22%3E%3Cellipse cx=%2222%22 cy=%2216%22 rx=%2222%22 ry=%2215%22/%3E%3Ccircle cx=%2222%22 cy=%2216%22 r=%227%22/%3E%3C/g%3E%0A%3Cg transform=%22translate(120,200)%22%3E%3Cpath d=%22M0 0 V46%22/%3E%3Cpath d=%22M-6 0 V14 C-6 20 6 20 6 14 V0%22/%3E%3Cpath d=%22M30 0 C40 6 40 24 30 28 V46%22/%3E%3C/g%3E%0A%3Cg transform=%22translate(206,186) rotate(22)%22%3E%3Cpath d=%22M0 22 C0 6 14 0 28 0 C28 14 22 26 8 28Z%22/%3E%3Cpath d=%22M4 24 C10 16 16 10 24 4%22/%3E%3C/g%3E%0A%3C/svg%3E");background-size:260px 260px;}
-.block-container{background:rgba(251,243,228,.82);border-radius:0 0 22px 22px;}
-/* hero: tenda warung + logo */
-.hero{position:relative;display:flex;align-items:center;gap:.8rem;text-align:left;padding:1.6rem 1rem 1rem;margin:.2rem 0 1.1rem;overflow:hidden;
- background:radial-gradient(circle at 85% 20%,rgba(217,164,65,.22),transparent 55%),linear-gradient(135deg,#430D09 0%,#6E1812 55%,#8E211A 100%);
- border-radius:18px;box-shadow:0 8px 20px rgba(67,13,9,.35);border:1px solid #2f0805;}
-.hero::before{content:"";position:absolute;left:0;right:0;top:0;height:.62rem;
- background:repeating-linear-gradient(90deg,#F7E7C6 0 1.1rem,#A3201A 1.1rem 2.2rem);}
-.hero::after{content:"";position:absolute;left:0;right:0;top:.62rem;height:.55rem;
- background:radial-gradient(circle at 1.1rem 0,#F7E7C6 .55rem,transparent .57rem) 0 0/2.2rem .55rem repeat-x,
-            radial-gradient(circle at 2.2rem 0,#A3201A .55rem,transparent .57rem) 0 0/2.2rem .55rem repeat-x;opacity:.95;}
-.hero .logo{flex:0 0 auto;width:5.6rem;background:#FFF8EA;border-radius:16px;padding:.3rem .35rem;border:2px solid var(--gold);
- box-shadow:0 3px 10px rgba(0,0,0,.3);margin-top:.5rem;}
-.hero .logo img{display:block;width:100%;height:auto;}
-.hero .tt{flex:1;margin-top:.5rem;}
-.hero h1{font-size:1.6rem;letter-spacing:.07em;color:#FFF3DA;text-shadow:0 2px 0 rgba(0,0,0,.35);line-height:1.1;}
-.hero .sub{background:var(--gold);color:#3b0d09;margin-top:.45rem;}
-.hero .sub2{margin-top:.35rem;font-size:.74rem;color:#F3D9A4;font-style:italic;letter-spacing:.03em;}
-h2,h3{color:var(--brand-d);}
-.kartu,.rekap-wrap,.rk-akhir{background:#FFFCF5;border-color:var(--line);}
-.kartu .besar{color:var(--brand);}
-.stButton>button[kind="primary"],.stFormSubmitButton>button[kind="primary"]{background:linear-gradient(180deg,#B3261E,#8E1B15);border-color:#6E1812;color:#FFF3DA;}
-.grp-h{background:linear-gradient(135deg,#5C1410,#8E211A);}
-.judul-sec h3::before{content:"🍽️ ";}
-table.rekap th{background:#FBE7C6;}
-table.rekap .nama,table.rekap .tot{background:#FBEBD0;}
-.pill-pesan{background:linear-gradient(180deg,#B3261E,#8E1B15);}
-/* libur: kolom merah muda, tulisan merah menyala */
-table.rekap th.libur{background:#FBC7D0!important;color:#D90429!important;}
-table.rekap td.libur{background:#FFE0E6!important;color:#D90429!important;font-weight:800;font-style:normal;font-size:.66rem;letter-spacing:.03em;}
-.libur-info{background:#FFE0E6;border-color:#F9A8B8;color:#B0102A;}
