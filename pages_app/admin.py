@@ -22,13 +22,14 @@ if not services.is_admin():
 
 if st.button("← Beranda", key="kembali"):
     st.switch_page("pages_app/beranda.py")
-st.markdown('<div class="hero"><h1>ADMIN</h1><div class="sub">UNGKEP JOWO</div></div>', unsafe_allow_html=True)
+import tema
+st.html(tema.hero("ADMIN", "UNGKEP JOWO"))
 
 KAT_MASTER = ["Nasi", "Lauk", "Lain-lain"]                 # menu master: makanan saja
 KAT_MAKANAN = ["Nasi", "Ayam Sayur", "Lauk", "Lain-lain"]  # urutan tampil (Ayam Sayur = data lama)
 
 tab_harian, tab_libur, tab_bayar, tab_master, tab_minuman, tab_sandi, tab_pelanggan, tab_awal = st.tabs(
-    ["Menu harian", "Libur", "Pembayaran", "Menu master", "Minuman", "Sandi", "Pelanggan", "Data awal"])
+    ["Menu harian", "Libur", "Pembayaran", "Menu master", "Minuman", "Sandi", "Pelanggan", "Impor Excel"])
 
 
 def _angka(x, default=0.0):
@@ -222,26 +223,6 @@ with tab_minuman:
 
 # ---------------------------------------------------------------- data awal
 with tab_awal:
-    import data_awal
-    ring = data_awal.ringkasan()
-    st.markdown("**Muat data awal dari REKAP_PEMBELIAN.xlsx**")
-    st.caption("Dipakai sekali di awal. Berisi daftar pelanggan, riwayat pesanan 20–21 Okt, menu master (nasi, lauk, kerupuk), "
-               "daftar minuman, dan menu 20–22 Okt (22 Okt: Sate Komo + sayur bening).")
-    with st.container(border=True):
-        st.markdown(f"- **{ring['pelanggan']}** pelanggan (sandi awal)\n- **{ring['riwayat']}** pesanan riwayat, total **{logic.rupiah(ring['total'])}**\n"
-                    f"- **{ring['menu']}** menu master dan **{ring['minuman']}** minuman")
-    st.warning("Menu master, daftar minuman, dan **semua pesanan tanggal 20–21 Okt** yang ada sekarang akan **diganti**. "
-               "Pelanggan yang sudah terdaftar tidak diubah. Menu 22 Okt hanya diisi bila belum kamu unggah. Aman dijalankan ulang.")
-    ok = st.checkbox("Saya mengerti, lanjutkan")
-    if st.button("Muat data awal", type="primary", disabled=not ok, width="stretch"):
-        hasil = data_awal.muat(store, services.sandi_awal())
-        st.session_state["_awal_ok"] = (f"Selesai: {hasil['pelanggan_baru']} pelanggan baru, {hasil['pesanan']} pesanan riwayat "
-                                        f"({', '.join(hasil['tanggal'])}). Menu master, minuman, dan menu 20–22 Okt sudah terisi.")
-        st.rerun()
-    if (pesan_ok := st.session_state.pop("_awal_ok", None)):
-        st.success(pesan_ok)
-
-    st.divider()
     st.markdown("**Unggah rekap pesanan (Excel)**")
     st.caption("Format sama seperti REKAP_PEMBELIAN: sel A1 \"TANGGAL\", baris 2 berisi tanggal, lalu kolom NAMA dan PESANAN. "
                "Tanggal yang sudah ada di aplikasi **ditimpa seluruhnya** (tidak ditambah), jadi data tidak dobel.")

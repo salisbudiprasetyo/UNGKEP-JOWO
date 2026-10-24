@@ -21,7 +21,8 @@ if services.is_admin():
     if st.button("", icon=":material/admin_panel_settings:", key="btn_admin", help="Halaman admin"):
         st.switch_page("pages_app/admin.py")
 
-st.markdown('<div class="hero"><h1>UNGKEP JOWO</h1><div class="sub">REKAP PEMBELIAN</div></div>', unsafe_allow_html=True)
+import tema
+st.html(tema.hero("UNGKEP JOWO", "REKAP PEMBELIAN", "Nikmati sekarang, bayar nanti"))
 
 # pop up terima kasih (setelah form pesan ditutup)
 if (info := st.session_state.pop("_sukses", None)):
@@ -144,9 +145,9 @@ def tabel_html(df: pd.DataFrame, nama_semua: list[str], hari: list[date], me: st
         attr = f' data-c="t|{kode}|{html.escape(n, quote=True)}"' if tklik else ""
         sisa_n = sisa_orang.get(n, 0.0)
         if semua_lunas:
-            isi_tot = f'<b>LUNAS</b><small>beli {logic.rupiah(total)}</small>'
+            isi_tot = '<b>LUNAS</b>'
         elif total and sisa_n < total:      # sebagian sudah dibayar: yang ditampilkan = kasbon yang belum dibayar
-            isi_tot = f'<b>{logic.rupiah(sisa_n)}</b><small>dari {logic.rupiah(total)}</small>'
+            isi_tot = logic.rupiah(sisa_n)
         else:
             isi_tot = logic.rupiah(total) if total else "-"
         h.append(f'<td class="tot{" klik" if tklik else ""}{" lunas-tot" if semua_lunas else ""}"{attr}>{isi_tot}</td></tr>')
