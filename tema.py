@@ -14,12 +14,19 @@ def _wajah(x: float, y: float, s: float = 1.0) -> str:
 
 
 def udang() -> str:
-    jalan = "M12 50 C-2 34 6 8 32 8 C52 8 60 28 48 42"
-    return (f'<path d="{jalan}" fill="none" stroke="#FF9A86" stroke-width="13" stroke-linecap="round"/>'
-            f'<path d="{jalan}" fill="none" stroke="#FFE1D8" stroke-width="13" stroke-dasharray="1.6 7.2" opacity=".9"/>'
-            '<path d="M48 42 l11 5 M48 42 l12 -3 M48 42 l5 12" stroke="#FF7F6A" stroke-width="5" stroke-linecap="round"/>'
-            '<path d="M9 55 C3 63 -3 60 -5 54 M14 57 C12 65 6 67 2 64" stroke="#FF7F6A" stroke-width="1.6" fill="none" stroke-linecap="round"/>'
-            '<circle cx="13" cy="47" r="2.1" fill="#5A2A22"/><circle cx="20" cy="51" r="2.6" fill="#FF8FA8" opacity=".75"/>')
+    """Udang rebus yang gemuk: badan melengkung berisi, garis ruas, ekor mengembang, mata besar."""
+    badan = ("M6 22 C8 6 30 -2 48 10 C62 20 62 40 50 52 C54 40 52 30 44 24 C34 17 24 20 20 30 C16 36 6 34 6 22 Z")
+    return ('<path d="M50 52 C41 54 36 62 39 67 C45 66 50 61 50 52 Z" fill="#FF6F4F"/>'
+            '<path d="M50 52 C53 61 58 65 64 63 C63 57 58 53 50 52 Z" fill="#FF6F4F"/>'
+            '<path d="M50 52 C46 60 49 68 53 68 C55 63 53 58 50 52 Z" fill="#FF8C69"/>'
+            '<path d="M8 22 C2 22 -2 18 -4 12 C3 12 8 14 10 17 Z" fill="#F0644A"/>'
+            f'<path d="{badan}" fill="#FF9570" stroke="#EE6B4D" stroke-width="1.6" stroke-linejoin="round"/>'
+            '<path d="M20 4 L25 19 M31 1.5 L34 17 M42 6 L43 22 M52 14 L48 27 M58 26 L52 36" stroke="#FFD1BF" stroke-width="2.2" stroke-linecap="round"/>'
+            '<path d="M12 8 C20 -1 34 -2 44 6" stroke="#FFC4AE" stroke-width="2.6" fill="none" stroke-linecap="round" opacity=".8"/>'
+            '<path d="M18 31 l-3 7 M25 27 l-2 8 M32 24 l1 8" stroke="#F0644A" stroke-width="2" stroke-linecap="round"/>'
+            '<path d="M7 28 C0 32 -3 40 0 48" stroke="#F0644A" stroke-width="1.6" fill="none" stroke-linecap="round"/>'
+            '<circle cx="15" cy="19" r="3.6" fill="#fff"/><circle cx="15.6" cy="19.4" r="2.1" fill="#5A2A22"/>'
+            '<circle cx="21" cy="26" r="3" fill="#FF8FA8" opacity=".7"/>')
 
 
 def ikan() -> str:
@@ -123,19 +130,39 @@ def pola_uri() -> str:
 
 @lru_cache(maxsize=1)
 def logo_svg() -> str:
-    """Logo buatan sendiri: mangkok nasi imut dengan udang di atasnya, uap, hati dan kilau. Tanpa tulisan, tanpa latar."""
+    """Logo buatan sendiri: mangkok kuah gurih berisi ayam goreng kriuk, sayur segar, dan nasi. Tanpa tulisan & tanpa latar."""
+    ayam = ('<g transform="translate(31 51) rotate(165) scale(.78) translate(-24 -22)">'
+            '<path d="M30 38 L50 58" stroke="#FFF3DC" stroke-width="7" stroke-linecap="round"/>'
+            '<circle cx="53" cy="55" r="4.4" fill="#FFF3DC"/><circle cx="47" cy="62" r="4.4" fill="#FFF3DC"/>'
+            '<g fill="#F7B53A" stroke="#E08A1C" stroke-width="1.4"><circle cx="43.0" cy="20.0" r="4.2"/><circle cx="38.6" cy="29.6" r="4.2"/><circle cx="27.3" cy="34.8" r="4.2"/><circle cx="14.5" cy="33.0" r="4.2"/><circle cx="6.1" cy="25.1" r="4.2"/><circle cx="6.1" cy="14.9" r="4.2"/><circle cx="14.5" cy="7.0" r="4.2"/><circle cx="27.3" cy="5.2" r="4.2"/><circle cx="38.6" cy="10.4" r="4.2"/></g>'
+            '<ellipse cx="24" cy="20" rx="20" ry="15.5" fill="#F7B53A"/>'
+            '<path d="M9 13 C14 5 26 3 34 6" stroke="#FFE08A" stroke-width="3" fill="none" stroke-linecap="round"/>'
+            '<g fill="#E0881A"><circle cx="13" cy="19" r="1.8"/><circle cx="22" cy="12" r="1.6"/><circle cx="32" cy="17" r="1.8"/><circle cx="20" cy="26" r="1.7"/>'
+            '<circle cx="30" cy="27" r="1.6"/><circle cx="38" cy="22" r="1.4"/></g>'
+            '<g fill="#FFD66B"><circle cx="24" cy="19" r="1.4"/><circle cx="16" cy="25" r="1.2"/><circle cx="35" cy="12" r="1.2"/></g>'
+            '</g>')
+    daun = ('<path d="M34 54 C22 44 24 28 36 22 C46 30 44 46 34 54 Z" fill="#5DBB63"/><path d="M34 52 C34 42 36 32 36 24" stroke="#BFE9B8" stroke-width="1.6" fill="none"/>'
+            '<path d="M44 54 C38 40 46 26 60 24 C64 38 56 50 44 54 Z" fill="#7BCB6F"/><path d="M46 52 C50 42 56 34 60 26" stroke="#CFF0C4" stroke-width="1.6" fill="none"/>'
+            '<path d="M54 56 C54 46 66 40 76 44 C74 54 66 58 54 56 Z" fill="#4FAE5B"/>')
     return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">'
-            '<path d="M34 24 c-4 -5 4 -8 0 -13 M50 22 c-4 -5 4 -8 0 -13 M66 24 c-4 -5 4 -8 0 -13" stroke="#FFB59E" stroke-width="3" fill="none" stroke-linecap="round"/>'
-            '<g transform="translate(76 4) scale(.5)">' + hati() + '</g>'
-            '<g transform="translate(5 22) scale(.7)">' + kilau() + '</g>'
-            '<g transform="translate(80 62) scale(.6)">' + kilau() + '</g>'
-            '<path d="M14 54 C14 28 86 28 86 54 Z" fill="#FFFDF6" stroke="#F4E4C6" stroke-width="2.5"/>'
-            '<circle cx="24" cy="46" r="1.8" fill="#EBDCC0"/><circle cx="76" cy="46" r="1.8" fill="#EBDCC0"/><circle cx="20" cy="52" r="1.6" fill="#EBDCC0"/>'
-            '<g transform="translate(30 21) scale(.66)">' + udang() + '</g>'
-            '<path d="M9 54 H91 C91 80 73 96 50 96 C27 96 9 80 9 54 Z" fill="#FF8E7A"/>'
-            '<path d="M9 54 H91 C91 58 90.6 61 90 64 H10 C9.4 61 9 58 9 54 Z" fill="#FFD27A"/>'
-            '<path d="M16 72 q5 -4 10 0 t10 0 t10 0 t10 0 t10 0 t10 0" stroke="#fff" stroke-width="2" fill="none" opacity=".65" stroke-linecap="round" transform="translate(0 -1)"/>'
-            + _wajah(50, 82, 1.0) + '</svg>')
+            '<path d="M32 24 c-4 -5 4 -8 0 -13 M50 20 c-4 -5 4 -8 0 -13 M68 24 c-4 -5 4 -8 0 -13" stroke="#FFB07A" stroke-width="3" fill="none" stroke-linecap="round"/>'
+            '<g transform="translate(78 2) scale(.45)">' + hati() + '</g>'
+            '<g transform="translate(2 24) scale(.62)">' + kilau() + '</g>'
+            '<g transform="translate(84 58) scale(.5)">' + kilau() + '</g>'
+            '<ellipse cx="50" cy="55" rx="42" ry="10" fill="#FFD27A"/>'
+            '<ellipse cx="50" cy="55" rx="37" ry="7.5" fill="#F39B2E"/>'
+            '<ellipse cx="50" cy="54" rx="30" ry="4" fill="#FFB84D" opacity=".7"/>'
+            + daun +
+            '<path d="M60 58 C60 47 85 47 85 58 Z" fill="#FFFDF6" stroke="#F1E2C4" stroke-width="1.5"/>'
+            '<circle cx="67" cy="54" r="1.2" fill="#E6D6B6"/><circle cx="74" cy="52" r="1.2" fill="#E6D6B6"/><circle cx="79" cy="56" r="1.2" fill="#E6D6B6"/>'
+            + ayam +
+            '<circle cx="26" cy="57" r="4.2" fill="#FF9A3C" stroke="#E57E1E" stroke-width="1"/><circle cx="26" cy="57" r="1.4" fill="#FFD9A0"/>'
+            '<circle cx="52" cy="59" r="2.6" fill="#E8403A"/><circle cx="52" cy="59" r=".9" fill="#FFB3A8"/>'
+            '<circle cx="44" cy="58.5" r="1.2" fill="#FFE9A0"/><circle cx="60" cy="59" r="1.1" fill="#FFE9A0"/><circle cx="34" cy="59" r="1" fill="#FFE9A0"/>'
+            '<path d="M9 54 Q50 72 91 54 C91 80 73 96 50 96 C27 96 9 80 9 54 Z" fill="#FF8E7A"/>'
+            '<path d="M9 54 Q50 72 91 54 C91 57 90.6 60 90 63 Q50 80 10 63 C9.4 60 9 57 9 54 Z" fill="#FFD27A"/>'
+            '<path d="M18 76 q5 -4 10 0 t10 0 t10 0 t10 0 t10 0 t10 0" stroke="#fff" stroke-width="2" fill="none" opacity=".6" stroke-linecap="round"/>'
+            + _wajah(50, 85, 1.0) + '</svg>')
 
 
 @lru_cache(maxsize=1)
