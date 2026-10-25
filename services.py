@@ -67,7 +67,7 @@ def is_admin() -> bool:
 
 
 def keluar() -> None:
-    for k in ("user", "role"):
+    for k in ("user", "role", "_disapa", "_chat"):
         st.session_state.pop(k, None)
 
 

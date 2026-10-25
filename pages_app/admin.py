@@ -31,8 +31,11 @@ import kucing as _kucing
 KAT_MASTER = ["Nasi", "Lauk", "Lain-lain"]                 # menu master: makanan saja
 KAT_MAKANAN = ["Nasi", "Ayam Sayur", "Lauk", "Lain-lain"]  # urutan tampil (Ayam Sayur = data lama)
 
-tab_harian, tab_libur, tab_bayar, tab_master, tab_minuman, tab_sandi, tab_pelanggan, tab_awal = st.tabs(
-    ["Menu harian", "Libur", "Pembayaran", "Menu master", "Minuman", "Sandi", "Pelanggan", "Impor Excel"])
+import tanya as _tanya
+_n_tanya = len(_tanya.menunggu(services.get_store()))
+tab_harian, tab_libur, tab_bayar, tab_master, tab_minuman, tab_sandi, tab_pelanggan, tab_awal, tab_tanya = st.tabs(
+    ["Menu harian", "Libur", "Pembayaran", "Menu master", "Minuman", "Sandi", "Pelanggan", "Impor Excel",
+     f"Tanya 🐱{' (' + str(_n_tanya) + ')' if _n_tanya else ''}"])
 
 
 def _angka(x, default=0.0):
@@ -432,3 +435,28 @@ with tab_libur:
             if st.button("Batalkan libur", key=f"hl_{d}", width="stretch"):
                 orders.hapus_libur(store, d)
                 st.rerun()
+
+
+# ---------------------------------------------------------------- pertanyaan dari pelanggan (lewat Meong)
+with tab_tanya:
+    _st = services.get_store()
+    _df = _tanya.menunggu(_st)
+    if _df.empty:
+        st.info("Tidak ada pertanyaan yang menunggu jawaban.")
+    for _, _r in _df.iterrows():
+        with st.container(border=True):
+            st.markdown(f"**{_r['pelanggan'].title()}** · {str(_r['waktu'])[:16].replace('T', ' ')}")
+            st.write(_r["pertanyaan"])
+            _j = st.text_area("Jawaban", key=f"tj_{_r['id']}", placeholder="Tulis jawaban untuk pelanggan…")
+            if st.button("Kirim jawaban", key=f"tk_{_r['id']}", type="primary"):
+                if _j.strip():
+                    _tanya.jawab(_st, _r["id"], _j)
+                    st.rerun()
+                else:
+                    st.warning("Jawaban masih kosong.")
+    _sel = _st.all("Tanya")
+    _sel = _sel[_sel["status"] == "Dijawab"] if len(_sel) else _sel
+    if len(_sel):
+        with st.expander(f"Sudah dijawab ({len(_sel)})"):
+            for _, _r in _sel.iloc[::-1].head(20).iterrows():
+                st.markdown(f"**{_r['pelanggan'].title()}**: {_r['pertanyaan']}\n\n↳ {_r['jawaban']}")

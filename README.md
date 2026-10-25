@@ -71,3 +71,11 @@ Tanggal bawaan di tab Menu harian: diunggah sebelum 13:00 WIB = menu hari ini, s
 
 ## Meong, kucing maskot
 Kucing animasi menyapa setelah masuk, berjalan/berlari/duduk/tidur/melompat di bagian bawah halaman, lari ke tempat yang diketuk, dan bisa diketuk untuk ngobrol (menu hari ini, pesanan saya, tagihan, cara bayar, jam batas, libur). Jawaban dibuat dari data aplikasi dengan aturan sederhana (bukan AI luar). Kode: `kucing.py`. Kucing disembunyikan di halaman admin.
+
+
+## Meong v2 (kucing gembul) & Tanya admin
+- Kucing tabby gembul digambar sebagai SVG berlapis dan digerakkan mesin animasi 60 fps (`assets/kucing.js`): napas, ekor, kedip, langkah, efek 3D semu.
+- Diam di **kanan atas**; tiap **5 detik** melakukan aktivitas acak (25 macam, durasi beragam). Setelah login: tersenyum, melompat dari kiri ke kanan, lalu melambai.
+- **Memberi makan**: saat Meong bilang "Aku lapar", pilih 🍗🍤🐟🥩🥛🍚 di gelembung.
+- **Tanya**: pertanyaan di luar kemampuan Meong disimpan di sheet `Tanya`, pelanggan diminta menunggu. Admin menjawab di tab **Tanya**; jawaban muncul di obrolan dan gelembung kucing (setelah halaman dimuat ulang).
+- Admin tidak bisa mengubah/membatalkan pesanan tanggal yang sudah lewat.

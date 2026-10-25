@@ -229,6 +229,8 @@ def pemesan(store, tgl: date, nama: str) -> str:
 def simpan_pesanan(store, tgl: date, nama: str, pilihan: dict[str, int], catatan: str = "",
                    langsung: bool = False, sekarang=None, oleh: str | None = None) -> tuple[str | None, str]:
     """Kembalikan (galat, jenis). jenis: 'baru' | 'revisi' | 'langsung'."""
+    if langsung and tgl < logic.today_wib():
+        return "Pesanan tanggal yang sudah lewat tidak bisa diubah.", ""
     if is_libur(store, tgl):
         return "Tanggal ini libur pemesanan.", ""
     if not langsung and is_tutup(store, tgl):
@@ -276,6 +278,8 @@ def simpan_pesanan(store, tgl: date, nama: str, pilihan: dict[str, int], catatan
 def batalkan_pesanan(store, tgl: date, nama: str, langsung: bool = False, sekarang=None) -> str | None:
     if not items_pesanan(store, tgl, nama):
         return "Pesanan tidak ditemukan."
+    if langsung and tgl < logic.today_wib():
+        return "Pesanan tanggal yang sudah lewat tidak bisa dibatalkan."
     if not langsung and is_tutup(store, tgl):
         return "Order untuk tanggal ini sudah ditutup admin."
     if not langsung and not logic.bisa_edit(tgl, sekarang):

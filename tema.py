@@ -208,6 +208,7 @@ h1,h2,h3,h4,.kartu .besar,.hero h1,.grp-h,.pill-pesan{font-family:'Fredoka','Nun
 .stApp{background-color:#FFEFD6;background-image:url("%POLA%");background-size:400px 400px;}
 [data-testid="stHeader"]{background:transparent;}
 .block-container{background:rgba(255,241,219,.55);border-radius:0 0 28px 28px;}
+.block-container{padding-top:5.4rem!important;}
 h2,h3{color:var(--brand-d);}
 
 /* kepala halaman: senja hangat + tenda warung */

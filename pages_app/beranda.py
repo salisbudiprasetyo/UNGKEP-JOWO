@@ -133,8 +133,7 @@ def tabel_html(df: pd.DataFrame, nama_semua: list[str], hari: list[date], me: st
             elif v:
                 isi = ("⏳" if pending else "") + f"{int(v):,}".replace(",", ".")
             elif klik:
-                isi = ('<span class="pill-pesan">PESAN</span>' if (not admin or d >= hari_ini)
-                       else '<span class="pill-tambah">+</span>')
+                isi = '<span class="pill-pesan">PESAN</span>'
             elif d in libur:
                 isi = "libur"
             else:
@@ -190,7 +189,7 @@ def turunan(cari_: str = "") -> SimpleNamespace:
     if cari_:
         nama = [n for n in nama if cari_.lower() in n.lower() or n == me]
     return SimpleNamespace(df=df_, libur=orders.libur_map(store), buka=buka, buka_admin=buka_admin, punyaku=punya, rev=rev_,
-                           nama=nama, semua=semua, sel_kosong=(set(orders.tanggal_menu(store)) if admin else ({buka} if buka else set())))
+                           nama=nama, semua=semua, sel_kosong=(({buka_admin} if buka_admin else set()) if admin else ({buka} if buka else set())))
 
 
 D = turunan()
@@ -241,7 +240,7 @@ if klik:
             ada = bool(orders.items_pesanan(store, tg, a2))
             if ada:
                 st.session_state["_open"] = ("rincian", a1, a2)
-            elif admin and tg in set(orders.tanggal_menu(store)):
+            elif admin and tg == _buka_admin:
                 st.session_state["_open"] = ("pesan", a1, a2, True)
             elif not admin and tg == _buka:
                 st.session_state["_open"] = ("pesan", a1, a2, False)
@@ -288,11 +287,12 @@ else:
 
 # Meong si kucing: menyapa sekali setelah masuk, lalu berkeliaran di halaman
 import kucing
+import tanya as _tanya
 _sapa = ""
 if me and not st.session_state.get("_disapa"):
     st.session_state["_disapa"] = True
     _sapa = f"Selamat datang, {me.title()}! Meong~ 🧡"
-_kjs = kucing.js(_sapa)
+_kjs = kucing.js(sapa=_sapa, nama=(me or "").title(), kabar=_tanya.kabar(services.get_store(), me))
 if hasattr(st, "iframe"):
     st.iframe(_kjs, height=1)
 else:

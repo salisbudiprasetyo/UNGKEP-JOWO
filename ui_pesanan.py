@@ -110,7 +110,7 @@ def dialog_pesan(tgl_iso: str, nama: str, langsung: bool = False):
                     pilihan[pil] = pilihan.get(pil, 0) + int(q)
                 with c[2]:
                     _hrg(q * harga[pil] if pil else 0, bool(pil))
-            if st.button(f"＋ Tambah {judul.lower()}", key=f"tambah_{kunci}_{k}", type="tertiary"):
+            if st.button(f"Tambah {judul.lower()}", key=f"tambah_{kunci}_{k}", type="tertiary"):
                 st.session_state[f"ex_{kunci}_{k}"] = st.session_state.get(f"ex_{kunci}_{k}", 0) + 1
                 st.rerun(scope="fragment")
 
@@ -255,7 +255,9 @@ def dialog_rincian(tgl_iso: str, nama: str, admin: bool = False):
             if c2.button("Tolak", width="stretch"):
                 orders.tolak_revisi(store, tgl, nama)
                 st.rerun()
-    if admin:
+    if admin and tgl < logic.today_wib():
+        st.caption("🔒 Pesanan tanggal yang sudah lewat tidak bisa diubah.")
+    elif admin:
         if st.button("Ubah pesanan (admin)" if items else "Buat pesanan", width="stretch"):
             st.session_state["_open"] = ("pesan", tgl_iso, nama, True)
             st.rerun()
@@ -413,7 +415,7 @@ def dialog_revisi(tgl_iso: str, nama: str):
     lama = orders.items_pesanan(store, tgl, nama)
     st.markdown(f"**{_esc(nama)}** · {label_tgl(tgl)}")
     diff = "".join(
-        f'<span class="diff {"tambah" if s == "+" else "kurang"}">{s}{n} {_esc(i)}</span>'
+        f'<span class="diff {"tambah" if s == "+" else "kurang"}">{"tambah" if s == "+" else "kurang"} {n} {_esc(i)}</span>'
         for s, i, n in orders.selisih(lama, rev["items"]) if s != "=")
     st.markdown(f"**Yang berubah:** {diff or '—'}", unsafe_allow_html=True)
     st.markdown("**Pesanan lama**")
@@ -468,7 +470,7 @@ def _rekap_html(semua: list[dict], admin: bool) -> str:
 
     rows = ['<tr class="sec"><td colspan="3">PORSI</td></tr>']
     if paket:
-        rows.append(baris("Nasi + Lauk (paket)", paket, "paket"))
+        rows.append(baris("Paket nasi & lauk", paket, "paket"))
     if lauk_saja:
         rows.append(baris("Lauk saja (tanpa nasi)", lauk_saja, "lauk"))
     if nasi_saja:
@@ -578,7 +580,7 @@ def dialog_siapa(tgl_iso: str, kunci: str, admin: bool = False):
     store = services.get_store()
     tgl = date.fromisoformat(tgl_iso)
     semua = orders.daftar_pesanan(store, tgl)
-    judul = {"paket": "Nasi + Lauk (paket)", "lauk": "Lauk saja (tanpa nasi)", "nasi": "Nasi saja (tanpa lauk)"}.get(kunci, kunci[2:])
+    judul = {"paket": "Paket nasi & lauk", "lauk": "Lauk saja (tanpa nasi)", "nasi": "Nasi saja (tanpa lauk)"}.get(kunci, kunci[2:])
     daftar = orders.siapa(semua, kunci)
     st.markdown(f"**{_esc(judul)}** · {sum(q for _, q in daftar)} porsi · {len(daftar)} orang")
     if not daftar:
@@ -633,6 +635,15 @@ def dialog_kucing(nama: str | None = None):
             for j, s in enumerate(kucing.SARAN[i:i + 3]):
                 if cols[j].button(s, key=f"saran_{i + j}", width="stretch"):
                     tanya(s)
+    if nama:
+        import tanya
+        for _, r in tanya.belum_dibaca(store, nama).iterrows():
+            riwayat.append(("bot", f"💌 **Jawaban admin** untuk \"{r['pertanyaan']}\":\n\n{r['jawaban']}"))
+        tanya.tandai_dibaca(store, nama)
+        tgu = tanya.milik(store, nama)
+        tgu = tgu[tgu["status"] == "Menunggu"] if len(tgu) else tgu
+        if len(tgu):
+            st.info(f"⏳ {len(tgu)} pertanyaanmu menunggu jawaban admin. Mohon tunggu ya.")
     for peran, teks in riwayat[-8:][::-1]:
         with st.chat_message("assistant" if peran == "bot" else "user", avatar="🐱" if peran == "bot" else None):
             st.markdown(teks)
