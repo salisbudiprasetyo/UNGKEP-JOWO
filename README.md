@@ -73,9 +73,10 @@ Tanggal bawaan di tab Menu harian: diunggah sebelum 13:00 WIB = menu hari ini, s
 Kucing animasi menyapa setelah masuk, berjalan/berlari/duduk/tidur/melompat di bagian bawah halaman, lari ke tempat yang diketuk, dan bisa diketuk untuk ngobrol (menu hari ini, pesanan saya, tagihan, cara bayar, jam batas, libur). Jawaban dibuat dari data aplikasi dengan aturan sederhana (bukan AI luar). Kode: `kucing.py`. Kucing disembunyikan di halaman admin.
 
 
-## Meong v2 (kucing gembul) & Tanya admin
-- Karakter **Pompom** memakai pose dari ilustrasi karakter (`assets/pompom.json`), digerakkan mesin animasi 60 fps (`assets/kucing.js`) dengan efek 3D semu: perspektif, putar badan, miring, squash & stretch, bayangan, dan kedalaman.
-- Diam di **kanan atas**; tiap **5 detik** melakukan aktivitas acak (25 macam, durasi beragam). Setelah login: tersenyum, melompat dari kiri ke kanan, lalu melambai.
-- **Memberi makan**: saat Meong bilang "Aku lapar", pilih 🍗🍤🐟🥩🥛🍚 di gelembung.
-- **Tanya**: pertanyaan di luar kemampuan Meong disimpan di sheet `Tanya`, pelanggan diminta menunggu. Admin menjawab di tab **Tanya**; jawaban muncul di obrolan dan gelembung kucing (setelah halaman dimuat ulang).
-- Admin tidak bisa mengubah/membatalkan pesanan tanggal yang sudah lewat.
+## Pompom & Oyen (kucing gembul)
+- **Pompom** (abu-abu) menemani pelanggan dan ikut pindah ke halaman admin; **Oyen** (oranye) hanya muncul di halaman admin dan pergi lagi saat admin kembali ke beranda.
+- Gambar karakter ada di `static/pompom.webp` dan `static/oyen.webp` (atlas pose + frame perantara hasil interpolasi gerak). Folder `static/` disajikan lewat `enableStaticServing = true` di `.streamlit/config.toml` — jangan dihapus.
+- Mesin animasi `assets/kucing.js` (60 fps): lintasan antar-pose lewat frame perantara, siklus jalan mengikuti jarak tempuh, fisika lompatan, pegas squash & stretch, balik badan lewat pose menghadap depan, perspektif 3D semu, dan bayangan.
+- Diam di kanan atas; tiap **5 detik** aktivitas acak: 26 aktivitas tunggal; di halaman admin ditambah 14 interaksi berdua (saling sapa, kejar-kejaran, tos lompat, berbagi makanan, saling merawat, menari bareng, tidur bareng, main bola, petak umpet, peluk sayang, ngobrol & tertawa, adu lari, lomba lompat, kaget bareng).
+- Setelah login: tersenyum, melompat dari kiri ke kanan, lalu melambai. **Memberi makan** lewat gelembung "Aku lapar".
+- **Tanya**: pertanyaan di luar kemampuan Pompom disimpan di sheet `Tanya`; admin menjawab di tab **Tanya**. Admin tidak bisa mengubah/membatalkan pesanan tanggal yang sudah lewat.

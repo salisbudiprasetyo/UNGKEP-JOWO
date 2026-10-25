@@ -292,7 +292,7 @@ _sapa = ""
 if me and not st.session_state.get("_disapa"):
     st.session_state["_disapa"] = True
     _sapa = f"Selamat datang, {me.title()}! Meong~ 🧡"
-_kjs = kucing.js(sapa=_sapa, nama=(me or "").title(), kabar=_tanya.kabar(services.get_store(), me),
+_kjs = kucing.js(mode="user", sapa=_sapa, nama=(me or "").title(), kabar=_tanya.kabar(services.get_store(), me),
                  lengkap=not st.session_state.get("_kucing_ada"))
 st.session_state["_kucing_ada"] = True
 if hasattr(st, "iframe"):

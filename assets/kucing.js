@@ -1,41 +1,18 @@
-// Pompom (kucing gembul): sprite dari ilustrasi karakter + gerak 3D semu (perspektif, putar, miring, squash & stretch) 60 fps.
-// Dijalankan di jendela induk. P = window, CFG = pengaturan dari server ({sapa, nama, kabar, css, spr}).
+// Pompom & Oyen: kucing gembul. Gambar karakter (atlas pose + frame perantara hasil interpolasi gerak) digerakkan mesin animasi 60 fps:
+// gerak berbasis fase langkah, fisika lompatan, pegas (squash & stretch), putaran 3D semu, bayangan, dan lintasan antar-pose.
+// Dijalankan di jendela induk. P = window, CFG = {mode, sapa, nama, kabar, css, meta, urls}.
 var D = P.document;
-if (P.__ujKucing) {
-  var K0 = P.__ujKucing; K0.show();
-  if (CFG.sapa) K0.sambut(CFG);
-  else if (CFG.kabar) K0.kabarBaru(CFG.kabar);
-  return;
-}
-var W = 96, H = 104;
+if (P.__ujKucing) { P.__ujKucing.mode(CFG.mode, CFG); return; }
+
+var M = CFG.meta, SC = M.scale, BW = M.cw / SC, BH = M.ch / SC, COLS = M.cols;
 var st = D.createElement('style'); st.id = 'uj-kucing-css'; st.textContent = CFG.css; D.head.appendChild(st);
-var root = D.createElement('div'); root.id = 'uj-kucing'; root.setAttribute('data-c', 'k|chat'); root.setAttribute('role', 'button');
-root.setAttribute('aria-label', 'Tanya Pompom');
-root.innerHTML = '<div class="bayang"></div><div class="tilt"></div>';
-D.body.appendChild(root);
-var tilt = root.querySelector('.tilt'), bayang = root.querySelector('.bayang');
-var gl = D.createElement('div'); gl.id = 'uj-gelembung'; D.body.appendChild(gl);
 
-// ------------------------------------------------------------------ sprite (satu <img> per pose, ditumpuk)
-var FK = { walk: .95, jump: .95, sit: 1, lick: .95, wave: .72, laugh: .72 };
-var IM = {};
-Object.keys(CFG.spr).forEach(function (n) {
-  var d = CFG.spr[n], f = FK[n.replace(/\d+$/, '')] || 1, im = D.createElement('img');
-  im.src = d[0]; im.alt = ''; im.draggable = false; im.style.width = (d[1] * f).toFixed(1) + 'px'; im.style.height = (d[2] * f).toFixed(1) + 'px';
-  im.style.opacity = 0; tilt.appendChild(im); IM[n] = im;
-});
-var cur = '', prev = '', fd = 1, zc = 1;
-function pose(n, cepat) {
-  if (!IM[n] || n === cur) return;
-  if (prev && IM[prev]) IM[prev].style.opacity = 0;
-  prev = cur; cur = n; zc++; IM[n].style.zIndex = zc;
-  if (cepat || !prev) { fd = 1; IM[n].style.opacity = 1; if (prev && IM[prev]) IM[prev].style.opacity = 0; prev = ''; }
-  else { fd = 0; IM[n].style.opacity = 0; }
-}
-
-// ------------------------------------------------------------------ keadaan & tween
-var S = { x: 0, y: 0, jy: 0, dx: -1, yw: 0, pt: 0, ro: 0, ln: 0, sc: 1, sq: 0, st: 0, tx: 0, sp: 0, op: 1 };
-var T = [], tok = 0, ph = 0, vx = 0, vy = 0, lastX = 0, lastY = 0, lastT = 0, nowS = 0;
+// ------------------------------------------------------------------ utilitas umum
+function rnd(a, b) { return a + Math.random() * (b - a); }
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+function vw() { return P.innerWidth || 360; }
+function vh() { return P.innerHeight || 640; }
 var E = {
   io: function (t) { return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; },
   out: function (t) { return 1 - Math.pow(1 - t, 3); },
@@ -44,301 +21,542 @@ var E = {
   sine: function (t) { return -(Math.cos(Math.PI * t) - 1) / 2; },
   back: function (t) { var c = 1.7; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); }
 };
-function tw(to, dur, ease) {
+var K = { sembunyi: false, kenyang: 0, kenyangT: 0, fedLast: 0, lastAct: '', timer: 0, wt: 0, sibuk: '', mod: 'user', cats: [], siap: false };
+P.addEventListener('unhandledrejection', function (e) { if (e.reason === 'batal') e.preventDefault(); });
+var GT = 0, T = [], nowS = 0, lastT = 0;      // GT: token pembatal global; T: daftar tween
+
+function tw(o, to, dur, ease) {
   return new Promise(function (res) {
-    for (var i = 0; i < T.length; i++) for (var k in to) delete T[i].to[k];
-    var tk = { from: {}, to: to, t0: P.performance.now(), dur: Math.max(1, dur), ease: ease || E.io, res: res };
-    for (var k2 in to) tk.from[k2] = S[k2];
+    for (var i = 0; i < T.length; i++) if (T[i].o === o) for (var k in to) delete T[i].to[k];
+    var tk = { o: o, from: {}, to: to, t0: P.performance.now(), dur: Math.max(1, dur), ease: ease || E.io, res: res };
+    for (var k2 in to) tk.from[k2] = o[k2];
     T.push(tk);
   });
 }
-function stopAll() { tok++; var t = T; T = []; t.forEach(function (x) { x.res(); }); clearTimeout(K.timer); clearTimeout(K.wt); }
-function chk(my) { if (my !== tok) throw 'batal'; }
-
-var K = { el: root, gl: gl, sembunyi: false, kenyang: 0, kenyangT: 0, fedLast: 0, lastAct: '', timer: 0, wt: 0, wk: false, cy: null };
-function maxX() { return Math.max(0, (P.innerWidth || 360) - W - 24); }
-function home() { return { x: maxX(), y: 10 }; }
-function maxY() { return Math.max(60, (P.innerHeight || 640) - H - 6); }
-function rnd(a, b) { return a + Math.random() * (b - a); }
-function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
-
-// ------------------------------------------------------------------ gambar tiap frame
-var WALK = ['walk0', 'walk1', 'walk2', 'walk3'];
-function apply(dt) {
-  var t = nowS, spd = Math.sqrt(vx * vx + vy * vy), sp = Math.min(1, spd / 90);
-  var bergerak = K.wk && sp > .04;
-  if (K.wk) ph += dt * (3 + sp * 9);
-  if (K.cy) { var i = Math.floor((P.performance.now() - K.cy.t0) / 1000 * K.cy.fps) % K.cy.l.length; pose(K.cy.l[i], true); }
-  else if (K.wk) { pose(bergerak ? WALK[Math.floor(ph / (Math.PI / 2)) % 4] : 'sit0', true); }
-  if (fd < 1) { fd = Math.min(1, fd + dt / .1); if (cur && IM[cur]) IM[cur].style.opacity = fd; if (fd >= 1 && prev && IM[prev]) { IM[prev].style.opacity = 0; prev = ''; } }
-  var bob = bergerak ? Math.abs(Math.sin(ph * 2)) * 3.4 * sp : 0;
-  var ds = (.9 + clamp(S.y / maxY(), 0, 1) * .14) * S.sc;            // makin ke bawah makin besar (kesan kedalaman)
-  root.style.opacity = S.op;
-  root.style.transform = 'translate3d(' + S.x.toFixed(2) + 'px,' + Math.max(2, S.y + S.jy - bob).toFixed(2) + 'px,0)';
-  var breathe = Math.sin(t * 2.3) * .014, idle = (!K.wk && !K.cy) ? 1 : .4;
-  var yaw = (1 - S.dx) * 90 + S.yw + S.sp + Math.sin(t * .8) * 5 * idle;
-  var lean = (K.wk || Math.abs(S.jy) > 2) ? clamp(vx / 90, -1, 1) * 6 : 0;
-  var sx = (1 + S.tx) * (1 + S.sq * .5) * (1 - breathe * .5) * ds, sy = (1 - S.sq * .9 + breathe) * (1 + S.st) * ds;
-  tilt.style.transform = 'rotateX(' + (S.pt + Math.sin(t * 1.3) * 1.2 * idle).toFixed(2) + 'deg) rotateZ(' + (S.ro + S.ln + lean).toFixed(2) + 'deg) rotateY(' +
-    yaw.toFixed(2) + 'deg) scale(' + sx.toFixed(3) + ',' + sy.toFixed(3) + ')';
-  var hh = Math.min(1, Math.abs(S.jy) / 90);
-  bayang.style.transform = 'translateX(-50%) scale(' + ((1 - hh * .45) * (1 + S.tx * .8) * ds).toFixed(3) + ',' + (1 - hh * .4).toFixed(3) + ')';
-  bayang.style.opacity = (.85 - hh * .5).toFixed(3);
-  if (gl.classList.contains('tampil')) posGl();
-}
-function frame(now) {
-  var dt = Math.min(.05, (now - (lastT || now)) / 1000); lastT = now; nowS = now / 1000;
-  for (var i = T.length - 1; i >= 0; i--) {
-    var tk = T[i], p = Math.min(1, (now - tk.t0) / tk.dur), e = tk.ease(p);
-    for (var k in tk.to) S[k] = tk.from[k] + (tk.to[k] - tk.from[k]) * e;
-    if (p >= 1) { T.splice(i, 1); tk.res(); }
-  }
-  if (dt > 0) { vx = vx * .7 + ((S.x - lastX) / dt) * .3; vy = vy * .7 + ((S.y - lastY) / dt) * .3; }
-  lastX = S.x; lastY = S.y;
-  if (!K.sembunyi && !D.hidden) apply(dt);
-  P.requestAnimationFrame(frame);
-}
-function posGl() {
-  var gw = gl.offsetWidth, gh = gl.offsetHeight, vw = P.innerWidth || 360;
-  var cx = S.x + W / 2, below = S.y + S.jy < 120;
-  var gx = Math.min(Math.max(6, cx - gw / 2), vw - gw - 6);
-  var gy = below ? S.y + S.jy + H + 6 : S.y + S.jy - gh - 8;
-  gl.style.transform = 'translate3d(' + gx.toFixed(1) + 'px,' + Math.max(4, gy).toFixed(1) + 'px,0)';
-  gl.classList.toggle('atas', !below);
-  gl.style.setProperty('--ekor', Math.min(gw - 22, Math.max(10, cx - gx - 6)) + 'px');
-}
-
-// ------------------------------------------------------------------ bantuan gerak
+function chk(my) { if (my !== GT) throw 'batal'; }
 function w(ms, my) { return new Promise(function (res) { K.wt = setTimeout(res, ms); }).then(function () { chk(my); }); }
-function pz(o, ms, e, my) { return tw(o, ms, e).then(function () { chk(my); }); }
+function pz(o, to, ms, e, my) { return tw(o, to, ms, e).then(function () { chk(my); }); }
 function par(list, my) { return Promise.all(list).then(function () { chk(my); }); }
-var bt = 0;
-function say(t, ms, menu) {
-  gl.innerHTML = ''; var sp = D.createElement('span'); sp.textContent = t; gl.appendChild(sp);
-  gl.classList.toggle('menu', !!menu);
+function stopAll() {
+  GT++; var t = T; T = []; t.forEach(function (x) { x.res(); }); clearTimeout(K.timer); clearTimeout(K.wt);
+  K.cats.forEach(function (c) { c.berhenti(); });
+}
+
+// ------------------------------------------------------------------ peta pose (graf jalur antar-pose lewat frame perantara)
+var IDX = {}; M.names.forEach(function (n, i) { IDX[n] = i; });
+var G = {};
+M.edges.forEach(function (e) {
+  (G[e[0]] = G[e[0]] || {})[e[1]] = e[2];
+  (G[e[1]] = G[e[1]] || {})[e[0]] = e[2].slice().reverse();
+});
+function route(a, b) {
+  if (a === b) return [];
+  if (!G[a] || !G[b]) return null;
+  var q = [[a]], seen = {}; seen[a] = 1;
+  while (q.length) {
+    var p = q.shift(), l = p[p.length - 1];
+    for (var n in G[l]) if (!seen[n]) { var np = p.concat(n); if (n === b) return np; seen[n] = 1; q.push(np); }
+  }
+  return null;
+}
+var RING = [];                               // siklus jalan: 5 pose kunci + frame perantara
+for (var wi = 0; wi < 5; wi++) { RING.push(IDX['walk' + wi]); RING = RING.concat(G['walk' + wi]['walk' + ((wi + 1) % 5)]); }
+var JUMP = [];                               // lintasan terbang: jump0 … jump5
+for (var ji = 0; ji < 5; ji++) { JUMP.push(IDX['jump' + ji]); JUMP = JUMP.concat(G['jump' + ji]['jump' + (ji + 1)]); }
+JUMP.push(IDX.jump5);
+var PEGAS = { k: 190, c: 15 };
+
+// ------------------------------------------------------------------ kelas kucing
+function Cat(id, url, nama) {
+  var c = this; c.id = id; c.nama = nama; c.seed = rnd(0, 6);
+  c.S = { x: 0, y: 0, jy: 0, sq: 0, sqv: 0, yaw: 0, yawv: 0, yawT: 0, roll: 0, rollv: 0, rollT: 0, pit: 0, pitv: 0, pitT: 0, sc: 1, op: 0 };
+  c.face = 1; c.pose = 'sit0'; c.cur = -1; c.seq = null; c.cyc = null; c.xf = null; c.walkOn = false; c.ph = 0; c.stride = 100;
+  c.vx = 0; c.vy = 0; c.lx = 0; c.ly = 0; c.bt = 0; c.run = false;
+  var r = D.createElement('div'); r.className = 'uj-cat'; r.id = 'uj-' + id;
+  r.innerHTML = '<div class="bayang"></div><div class="tilt"><div class="spr"></div><div class="spr"></div></div><div class="hit"></div>';
+  r.style.width = BW + 'px'; r.style.height = BH + 'px'; D.body.appendChild(r); c.el = r; c.tilt = r.querySelector('.tilt'); c.bay = r.querySelector('.bayang'); c.hit = r.querySelector('.hit');
+  c.L = [].slice.call(r.querySelectorAll('.spr')); c.front = 0;
+  c.L.forEach(function (l) { l.style.width = BW + 'px'; l.style.height = BH + 'px'; l.style.backgroundImage = 'url("' + url + '")'; l.style.backgroundSize = (COLS * BW) + 'px auto'; });
+  c.L[1].style.opacity = 0;
+  var g = D.createElement('div'); g.className = 'uj-gelembung'; D.body.appendChild(g); c.gl = g;
+  c.show(IDX.sit0, true);
+}
+Cat.prototype.show = function (i, force) {
+  var c = this; if (i === c.cur && !force) return; c.cur = i;
+  var l = c.L[c.front]; l.style.backgroundPosition = (-(i % COLS) * BW) + 'px ' + (-Math.floor(i / COLS) * BH) + 'px';
+};
+Cat.prototype.setFace = function (f) {
+  var c = this; c.face = f; c.L.forEach(function (l) { l.style.transform = 'scaleX(' + f + ')'; });
+};
+Cat.prototype.snapXf = function () {
+  var c = this; if (!c.xf) return; var x = c.xf; c.xf = null;
+  var back = c.L[1 - c.front]; c.front = 1 - c.front; back.style.opacity = 0; c.L[c.front].style.opacity = 1; c.cur = x.to; if (x.res) x.res();
+};
+Cat.prototype.cross = function (pose, ms) {      // lintas-pudar ke pose lain (dipakai bila tak ada jalur perantara)
+  var c = this, i = typeof pose === 'number' ? pose : IDX[pose];
+  return new Promise(function (res) {
+    c.snapXf(); c.seq = null;
+    var b = c.L[1 - c.front]; b.style.backgroundPosition = (-(i % COLS) * BW) + 'px ' + (-Math.floor(i / COLS) * BH) + 'px'; b.style.opacity = 0;
+    c.xf = { t0: P.performance.now(), ms: ms || 160, to: i, res: res };
+    if (typeof pose === 'string') c.pose = pose;
+  });
+};
+Cat.prototype.go = function (target, fps) {      // putar frame perantara dari pose sekarang ke pose tujuan
+  var c = this; fps = fps || 26;
+  return new Promise(function (res) {
+    c.snapXf();
+    if (c.seq && c.seq.res) c.seq.res();
+    var p = route(c.pose, target), fr = [];
+    if (c.pose === target) { c.show(IDX[target]); c.seq = null; return res(); }
+    if (!p) { c.cross(target, 170).then(res); return; }
+    for (var i = 0; i < p.length - 1; i++) { fr = fr.concat(G[p[i]][p[i + 1]]); fr.push(IDX[p[i + 1]]); }
+    c.seq = { f: fr, fps: fps, t0: P.performance.now(), res: res, tujuan: target };
+  });
+};
+Cat.prototype.set = function (pose) { var c = this; c.snapXf(); c.seq = null; c.cyc = null; c.pose = pose; c.show(IDX[pose]); };
+Cat.prototype.loop = function (poses, fps) { var c = this; c.cyc = poses ? { f: poses.map(function (p) { return typeof p === 'number' ? p : IDX[p]; }), fps: fps || 6, t0: P.performance.now() } : null; };
+Cat.prototype.berhenti = function () {
+  var c = this; c.walkOn = false; c.cyc = null; c.run = false;
+  if (c.seq) { var s = c.seq; c.seq = null; c.pose = s.tujuan; c.show(s.f[s.f.length - 1]); if (s.res) s.res(); }
+  c.snapXf(); c.S.yawT = 0; c.S.rollT = 0; c.S.pitT = 0;
+};
+Cat.prototype.kick = function (v) { this.S.sqv += v; };           // dorongan squash/stretch (positif = menekan)
+Cat.prototype.home = function (slot) {
+  var s = slot == null ? this.slot : slot; return { x: clamp(vw() - 58 - (s || 0) * 104, 56, 9999), y: 122 };
+};
+Cat.prototype.maxY = function () { return Math.max(150, vh() - 14); };
+Cat.prototype.clampPos = function (x, y) { return { x: clamp(x, 56, Math.max(60, vw() - 56)), y: clamp(y, 122, this.maxY()) }; };
+
+// ------------------------------------------------------------------ gelembung ucapan & efek
+Cat.prototype.say = function (t, ms, menu) {
+  var c = this, g = c.gl; K.cats.forEach(function (o) { if (o !== c && !menu) o.diam(); }); g.innerHTML = ''; var sp = D.createElement('span'); sp.textContent = t; g.appendChild(sp);
+  g.classList.toggle('menu', !!menu);
   if (menu) {
     var box = D.createElement('div'); box.className = 'mkn';
     [['🍗', 'ayam goreng'], ['🍤', 'udang'], ['🐟', 'ikan'], ['🥩', 'daging'], ['🥛', 'susu'], ['🍚', 'nasi']].forEach(function (f) {
       var b = D.createElement('button'); b.type = 'button'; b.textContent = f[0]; b.title = f[1]; b.setAttribute('aria-label', f[1]);
-      b.addEventListener('click', function (ev) { ev.stopPropagation(); K.beriMakan(f[0], b); }); box.appendChild(b);
+      b.addEventListener('click', function (ev) { ev.stopPropagation(); K.beriMakan(c, f[0], b); }); box.appendChild(b);
     });
-    gl.appendChild(box);
+    g.appendChild(box);
   }
-  gl.classList.add('tampil'); posGl(); clearTimeout(bt);
-  if (ms) bt = setTimeout(function () { gl.classList.remove('tampil'); gl.classList.remove('menu'); }, ms);
-}
-function diam() { gl.classList.remove('tampil'); gl.classList.remove('menu'); clearTimeout(bt); }
+  g.classList.add('tampil'); c.posGl(); clearTimeout(c.bt);
+  if (ms) c.bt = setTimeout(function () { g.classList.remove('tampil'); g.classList.remove('menu'); }, ms);
+};
+Cat.prototype.diam = function () { this.gl.classList.remove('tampil'); this.gl.classList.remove('menu'); clearTimeout(this.bt); };
+Cat.prototype.posGl = function () {
+  var c = this, g = c.gl, gw = g.offsetWidth, gh = g.offsetHeight, S = c.S, W = vw();
+  var topY = S.y + S.jy - 112, below = topY < 70, cx = S.x;
+  var gx = clamp(cx - gw / 2, 6, W - gw - 6);
+  var gy = below ? S.y + S.jy + 8 : topY - gh + 6;
+  g.style.transform = 'translate3d(' + gx.toFixed(1) + 'px,' + Math.max(4, gy).toFixed(1) + 'px,0)';
+  g.classList.toggle('atas', !below);
+  g.style.setProperty('--ekor', clamp(cx - gx - 6, 12, gw - 24) + 'px');
+};
 function fx(emoji, x, y, dx, dy, ms, size) {
   var n = D.createElement('div'); n.className = 'uj-fx'; n.textContent = emoji; n.style.fontSize = (size || 18) + 'px'; D.body.appendChild(n);
   var t0 = P.performance.now();
-  (function f(now) { var p = Math.min(1, (now - t0) / ms);
+  (function f(now) {
+    var p = Math.min(1, (now - t0) / ms);
     n.style.transform = 'translate3d(' + (x + dx * p) + 'px,' + (y + dy * p - Math.sin(p * Math.PI) * 14) + 'px,0) scale(' + (.6 + Math.sin(p * Math.PI) * .7) + ')';
     n.style.opacity = p < .7 ? 1 : (1 - p) / .3;
-    if (p < 1) P.requestAnimationFrame(f); else n.remove(); })(t0);
+    if (p < 1) P.requestAnimationFrame(f); else n.remove();
+  })(t0);
 }
-function hati(n) { for (var i = 0; i < (n || 3); i++) (function (i) { setTimeout(function () { fx('❤️', S.x + 26 + rnd(0, 40), S.y + S.jy, rnd(-14, 14), -rnd(36, 60), 1200, 16 + rnd(0, 6)); }, i * 180); })(i); }
-function cyc(list, fps) { K.cy = list ? { l: list, fps: fps || 4, t0: P.performance.now() } : null; }
-function duduk(n) { K.wk = false; K.cy = null; pose(n || 'sit0'); }
-function menghadap(d, ms, my) { return pz({ dx: d }, ms || 320, E.io, my); }
-function ke(x, y, ms, my, e) { return pz({ x: clamp(x, 0, maxX()), y: clamp(y, 0, maxY()) }, ms, e || E.sine, my); }
-async function jalanKe(x, y, ms, my) {
-  await menghadap(x < S.x ? -1 : 1, 280, my);
-  K.cy = null; K.wk = true; pose('walk0', true);
-  await ke(x, y, ms, my); K.wk = false; duduk('sit0');
+Cat.prototype.hati = function (n, e) {
+  var c = this;
+  for (var i = 0; i < (n || 3); i++) (function (i) { setTimeout(function () { fx(e || '❤️', c.S.x - 10 + rnd(0, 36), c.S.y + c.S.jy - 96, rnd(-14, 14), -rnd(36, 60), 1200, 16 + rnd(0, 6)); }, i * 180); })(i);
+};
+
+// ------------------------------------------------------------------ render per frame
+function pegas(S, k, tgt, dt) {
+  var v = S[k + 'v'] || 0; v += ((tgt - S[k]) * PEGAS.k - v * PEGAS.c) * dt; S[k] += v * dt; S[k + 'v'] = v;
 }
-async function lompatKe(x, y, ms, tinggi, my) {
-  // merunduk → melesat (badan miring ke depan lalu menukik) → mendarat memantul; semua dengan pose gambar karakter
-  var d = x > S.x ? 1 : -1; tinggi = tinggi || 46; ms = ms || 640; K.wk = false; K.cy = null;
-  await par([tw({ dx: d }, 220)], my);
-  pose('jump5'); await par([tw({ sq: .2, tx: .06 }, 150, E.out)], my);
-  pose('jump0');
-  var a = tw({ x: clamp(x, 0, maxX()), y: clamp(y, 0, maxY()) }, ms, E.sine);
-  var b = tw({ sq: -.06, tx: -.02, pt: -8 }, ms * .3, E.out).then(function () { return tw({ pt: 10 }, ms * .6, E.io); });
-  var up = tw({ jy: -tinggi }, ms * .5, E.out).then(function () { return tw({ jy: 0 }, ms * .5, E.inn); });
-  var seq = (async function () {
-    await w2(ms * .12); pose('jump1', true); await w2(ms * .2); pose('jump2', true); await w2(ms * .22); pose('jump3', true); await w2(ms * .2); pose('jump4', true);
-  })();
-  await par([a, b, up, seq], my);
-  pose('jump5', true); await par([tw({ sq: .22, tx: .08, pt: 0 }, 110, E.out)], my);
-  await par([tw({ sq: 0, tx: 0 }, 300, E.back)], my); duduk('sit0');
-}
-function w2(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
-async function netral(ms, my) { await pz({ yw: 0, pt: 0, ro: 0, ln: 0, sq: 0, st: 0, tx: 0, jy: 0, sc: 1, sp: 0 }, ms || 380, E.io, my); }
-async function pulang(my) {
-  var h = home(); K.cy = null;
-  if (Math.abs(S.x - h.x) > 3 || Math.abs(S.y - h.y) > 3) {
-    if (S.y > h.y + 120 || Math.abs(S.x - h.x) > 160) { await lompatKe(h.x, h.y, 800, 70, my); } else { await jalanKe(h.x, h.y, 800, my); }
+Cat.prototype.step = function (dt, now) {
+  var c = this, S = c.S, t = nowS;
+  if (dt > 0) {
+    c.vx = c.vx * .75 + ((S.x - c.lx) / dt) * .25; c.vy = c.vy * .75 + ((S.y - c.ly) / dt) * .25;
   }
-  duduk('sit0'); await par([tw({ dx: -1 }, 420), netral(420, my)], my);
+  c.lx = S.x; c.ly = S.y;
+  var spd = Math.sqrt(c.vx * c.vx + c.vy * c.vy);
+  // --- pilih frame
+  if (c.xf) {
+    var p = Math.min(1, (now - c.xf.t0) / c.xf.ms), b = c.L[1 - c.front]; b.style.opacity = E.sine(p).toFixed(3);
+    if (p >= 1) c.snapXf();
+  } else if (c.fly) {
+    var fp = clamp((now - c.fly.t0) / c.fly.ms, 0, 1); c.show(JUMP[Math.min(JUMP.length - 1, Math.floor(fp * JUMP.length))]);
+  } else if (c.seq) {
+    var s = c.seq, i = Math.floor((now - s.t0) / 1000 * s.fps);
+    if (i >= s.f.length) { c.pose = s.tujuan; c.show(s.f[s.f.length - 1]); c.seq = null; if (s.res) s.res(); }
+    else c.show(s.f[i]);
+  } else if (c.cyc) {
+    c.show(c.cyc.f[Math.floor((now - c.cyc.t0) / 1000 * c.cyc.fps) % c.cyc.f.length]);
+  } else if (c.walkOn) {
+    c.ph += (spd / c.stride) * dt; var a = Math.floor(((c.ph % 1) + 1) % 1 * RING.length); c.show(RING[a]);
+  }
+  // --- target 3D
+  var arah = c.vx >= 0 ? 1 : -1, moving = c.walkOn && spd > 8, air = Math.abs(S.jy) > 3;
+  var lean = (moving || air) ? clamp(c.vx / 140, -1, 1) : 0;
+  S.rollT = (c.rollB || 0) + lean * 5;
+  S.yawT = (c.yawB || 0) + (moving ? -arah * Math.min(1, spd / 80) * 13 : 0) + Math.sin(t * .7 + c.seed) * (moving ? 1.5 : 3.5);
+  S.pitT = (c.pitB || 0) + (moving ? 1.5 : 0) + (air ? clamp(-c.vjy / 160, -1, 1) * -6 : 0);
+  pegas(S, 'yaw', S.yawT, dt); pegas(S, 'roll', S.rollT, dt); pegas(S, 'pit', S.pitT, dt); pegas(S, 'sq', c.sqT || 0, dt);
+  var vjy = (S.jy - (c.ljy || 0)) / Math.max(dt, 1e-3); c.vjy = (c.vjy || 0) * .7 + vjy * .3; c.ljy = S.jy;
+  var stretch = air ? -clamp(Math.abs(c.vjy) / 1100, 0, .1) : 0;
+  var ds = (.9 + clamp((S.y - 122) / Math.max(200, c.maxY() - 122), 0, 1) * .17) * S.sc;
+  var br = (!moving && !c.seq && !c.cyc && !air) ? Math.sin(t * 2.1 + c.seed) * .011 : 0;
+  var sq = S.sq + stretch, sx = (1 + sq * .5 - br * .5) * ds, sy = (1 - sq + br) * ds;
+  var bob = moving ? -Math.abs(Math.sin(c.ph * Math.PI * 2)) * 2.6 * Math.min(1, spd / 90) : 0;
+  c.el.style.opacity = S.op;
+  c.el.style.transform = 'translate3d(' + (S.x - BW / 2).toFixed(2) + 'px,' + (S.y + S.jy - BH + bob).toFixed(2) + 'px,0)';
+  c.el.style.zIndex = 90 + Math.min(9, Math.floor(S.y / 90));
+  c.tilt.style.transform = 'rotateX(' + S.pit.toFixed(2) + 'deg) rotateY(' + S.yaw.toFixed(2) + 'deg) rotateZ(' + S.roll.toFixed(2) + 'deg) scale(' + sx.toFixed(4) + ',' + sy.toFixed(4) + ')';
+  var hh = clamp(-S.jy / 100, 0, 1);
+  c.bay.style.transform = 'translateX(-50%) scale(' + ((1 - hh * .5) * ds).toFixed(3) + ',' + (1 - hh * .4).toFixed(3) + ')';
+  c.bay.style.opacity = (.9 - hh * .55).toFixed(3);
+  if (c.gl.classList.contains('tampil')) c.posGl();
+};
+function frame(now) {
+  var dt = Math.min(.05, (now - (lastT || now)) / 1000); lastT = now; nowS = now / 1000;
+  for (var i = T.length - 1; i >= 0; i--) {
+    var tk = T[i], p = Math.min(1, (now - tk.t0) / tk.dur), e = tk.ease(p);
+    for (var k in tk.to) tk.o[k] = tk.from[k] + (tk.to[k] - tk.from[k]) * e;
+    if (p >= 1) { T.splice(i, 1); tk.res(); }
+  }
+  if (!K.sembunyi && !D.hidden) K.cats.forEach(function (c) { if (c.aktif) c.step(dt, now); });
+  P.requestAnimationFrame(frame);
 }
 
-// ------------------------------------------------------------------ 25+ aktivitas
+// ------------------------------------------------------------------ gerak dasar: balik badan, jalan, lompat
+function gp(c, pose, fps, my) { return c.go(pose, fps).then(function () { chk(my); }); }
+function isWalk(c) { return /^walk/.test(c.pose); }
+async function hadap(c, dir, my) {                  // balik badan lewat pose menghadap depan (tidak gepeng)
+  if (c.face === dir) return;
+  c.yawB = -dir * 26;
+  if (isWalk(c)) { await gp(c, 'walkF', 36, my); c.setFace(dir); await gp(c, 'walk3', 36, my); }
+  else if (/^(sit[1-5]|lick|jump)/.test(c.pose)) { await gp(c, 'sit0', 36, my); c.setFace(dir); }
+  else c.setFace(dir);
+  c.yawB = 0;
+}
+function kunciWalk(c) {                              // pose kunci terdekat dari posisi siklus jalan
+  var a = Math.floor(((c.ph % 1) + 1) % 1 * RING.length), k = Math.round(a / 5) % 5; return k;
+}
+async function jalanKe(c, x, y, my, spd) {
+  spd = spd || 85; var S = c.S, t = c.clampPos(x, y);
+  var dx = t.x - S.x, dist = Math.hypot(dx, t.y - S.y); if (dist < 5) return;
+  if (Math.abs(dx) > 8) await hadap(c, dx > 0 ? 1 : -1, my);
+  c.stride = spd > 150 ? 150 : 104;
+  var dur = Math.max(450, dist / spd * 1000 * 1.22);
+  var mulai = isWalk(c) ? Promise.resolve() : c.go('walk3', 38);
+  var gerak = tw(S, { x: t.x, y: t.y }, dur, E.sine);
+  await mulai; chk(my);
+  c.pose = 'walk3'; c.ph = IDX.walk3 && RING.indexOf(IDX.walk3) / RING.length; c.walkOn = true;
+  await gerak; chk(my);
+  c.walkOn = false; var k = kunciWalk(c); c.pose = 'walk' + k; c.show(IDX['walk' + k]);
+  await gp(c, 'sit0', 32, my);
+}
+async function lompatKe(c, x, y, tinggi, ms, my) {
+  var S = c.S, t = c.clampPos(x, y); tinggi = tinggi || 50; ms = ms || 650;
+  var dir = t.x > S.x + 4 ? 1 : (t.x < S.x - 4 ? -1 : c.face);
+  if (dir !== c.face) await hadap(c, dir, my);
+  c.sqT = .13; await gp(c, 'jump0', 46, my); await w(40, my);          // jongkok (antisipasi)
+  c.sqT = 0; c.kick(-7);
+  c.fly = { t0: P.performance.now(), ms: ms };
+  var a = tw(S, { x: t.x, y: t.y }, ms, E.sine);
+  var up = tw(S, { jy: -tinggi }, ms * .5, E.out).then(function () { return tw(S, { jy: 0 }, ms * .5, E.inn); });
+  await Promise.all([a, up]); chk(my);
+  c.fly = null; c.pose = 'jump5'; c.show(IDX.jump5); c.kick(9);        // mendarat: menekan lalu memantul (pegas)
+  await w(70, my); await gp(c, 'sit1', 34, my);
+}
+async function pulang(c, my) {
+  var h = c.home(), S = c.S; c.diam();
+  var jauh = Math.hypot(S.x - h.x, S.y - h.y);
+  if (jauh > 4) { if (jauh > 260 || S.y - h.y > 150) await lompatKe(c, h.x, h.y, 70, 800, my); else await jalanKe(c, h.x, h.y, my); }
+  c.yawB = 0; c.rollB = 0; c.pitB = 0; c.sqT = 0;
+  if (c.pose !== 'sit0') await gp(c, 'sit0', 30, my);
+}
+
+// ------------------------------------------------------------------ aktivitas tunggal (26)
 var AK = {};
-AK.duduk_santai = async function (my) { duduk('sit0'); await pz({ yw: 16 }, 1000, E.io, my); await w(1200, my); pose('sit5'); await pz({ yw: -14, ln: -2 }, 1100, E.io, my); await w(1400, my); pose('sit0'); };
-AK.menguap = async function (my) { duduk('sit0'); await par([tw({ pt: -6, st: .05 }, 500, E.io)], my); pose('laugh2'); await par([tw({ st: .12, sq: -.02 }, 900, E.io)], my); await w(1400, my);
-  await par([tw({ st: 0, pt: 0, sq: 0 }, 700, E.io)], my); pose('laugh4'); await w(900, my); };
-AK.jilat_kaki = async function (my) { cyc(['lick0', 'lick1'], 2.4); await par([tw({ ln: -2, yw: 10 }, 900, E.sine)], my); await w(2600, my); await par([tw({ ln: 0, yw: 0 }, 600, E.io)], my); };
-AK.cuci_muka = async function (my) { cyc(['lick1', 'lick0'], 5); for (var i = 0; i < 4; i++) { await pz({ yw: 12, ro: 2 }, 420, E.sine, my); await pz({ yw: -12, ro: -2 }, 420, E.sine, my); } await par([tw({ yw: 0, ro: 0 }, 400, E.io)], my); duduk('sit0'); pose('laugh4'); await w(700, my); };
-AK.garuk_telinga = async function (my) { duduk('sit1'); await par([tw({ ro: -6, yw: 12 }, 500, E.io)], my);
-  for (var i = 0; i < 8; i++) await pz({ ro: -6 + (i % 2 ? 3 : -3), ln: i % 2 ? 2 : -2 }, 110, E.sine, my);
-  await par([tw({ ro: 0, ln: 0, yw: 0 }, 600, E.io)], my); };
-AK.melambai = async function (my) { say('Hai hai! 👋', 3400); cyc(['wave0', 'wave1'], 3.2); await par([tw({ yw: 14, ro: 2 }, 600, E.io)], my);
-  for (var i = 0; i < 4; i++) { await pz({ jy: -7 }, 260, E.out, my); await pz({ jy: 0 }, 260, E.inn, my); } await par([tw({ yw: 0, ro: 0 }, 500, E.io)], my); };
-AK.mengeong = async function (my) { duduk('wave0');
-  for (var i = 0; i < 2; i++) { say(i ? 'Meooong~' : 'Meong!', 1500); await par([tw({ st: .08, pt: -6, sc: 1.04 }, 220, E.out)], my); await w(520, my); await par([tw({ st: 0, pt: 0, sc: 1 }, 320, E.io)], my); await w(380, my); } };
-AK.minta_makan = async function (my) {
-  if (K.kenyang >= 4 && Date.now() - K.kenyangT < 120000) { say('Aku kenyang banget… 🥱', 3000); duduk('sit2'); await par([tw({ sq: .06 }, 800, E.io)], my); await w(2400, my); await netral(500, my); return; }
-  duduk('sit5'); await par([tw({ ln: -3, yw: 8 }, 500, E.io)], my);
-  say('Aku lapar 🍗 kasih makan dong…', 12000, true);
-  for (var i = 0; i < 6; i++) { await par([tw({ st: .08, pt: -8, ro: -3 }, 300, E.out)], my); if (i % 2) { pose('wave1'); } else { pose('sit5'); } await pz({ st: 0, pt: 0, ro: 3 }, 460, E.io, my); await w(900, my); }
-  diam(); await netral(500, my); say('Hmm… ya sudah 🙁', 2600); duduk('sit2'); await w(1800, my); };
-AK.tidur = async function (my) { duduk('sit2'); await par([tw({ sq: .08, ln: 5, pt: 6 }, 1500, E.io)], my);
-  var i = 0; while (i < 3) { say(['Zzz…', 'Zzz… zzz…', 'Zzzz~'][i], 2400); await pz({ sq: .11 }, 1300, E.sine, my); await pz({ sq: .07 }, 1300, E.sine, my); i++; }
-  diam(); pose('laugh2'); await par([tw({ sq: 0, ln: 0, pt: -5, st: .1 }, 800, E.io)], my); await w(800, my); await netral(600, my); };
-AK.peregangan = async function (my) { duduk('jump5'); await par([tw({ tx: .2, sq: .12, pt: 8, yw: 10 }, 1100, E.io)], my); await w(1500, my);
-  await par([tw({ tx: 0, sq: 0, pt: 0, yw: 0, st: .08 }, 900, E.io)], my); pose('laugh2'); await w(500, my); await netral(500, my); };
-AK.jalan_santai = async function (my) { var h = home(), tx = Math.max(10, h.x - rnd(140, 260)); await jalanKe(tx, h.y, 2800, my);
-  pose('sit1'); await par([tw({ yw: -20 }, 500)], my); await w(700, my); pose('sit5'); await par([tw({ yw: 20 }, 600)], my); await w(800, my); };
-AK.lari_keliling = async function (my) { say('Wuuush! 💨', 1800); await menghadap(-1, 200, my); K.wk = false; cyc(['jump1', 'jump2', 'jump3', 'jump2'], 9);
-  await par([tw({ x: 6, y: home().y + 12, pt: 4 }, 1150, E.sine)], my); await par([tw({ sq: .1 }, 120)], my); await w(200, my);
-  await menghadap(1, 260, my); await par([tw({ x: home().x, y: home().y, sq: 0 }, 1150, E.sine)], my); cyc(null); duduk('sit0'); await par([tw({ pt: 0 }, 300)], my); };
-AK.lompat_ditempat = async function (my) { var x0 = S.x, y0 = S.y; for (var i = 0; i < 3; i++) { await lompatKe(x0, y0, 560, 38 + i * 8, my); await w(120, my); } pose('wave1'); await par([tw({ jy: -6 }, 200, E.out)], my); await pz({ jy: 0 }, 200, E.inn, my); await w(500, my); };
-AK.lompat_jauh = async function (my) { var h = home(); await lompatKe(Math.max(8, h.x - rnd(120, 230)), h.y + rnd(80, 190), 900, 88, my);
-  pose('wave1'); await w(900, my); await lompatKe(h.x, h.y, 950, 96, my); };
-AK.kejar_ekor = async function (my) { duduk('sit3'); await par([tw({ sq: .08 }, 250)], my);
-  for (var i = 0; i < 5; i++) { var d = i % 2 ? 1 : -1; await par([tw({ yw: 58 * d, ln: 5 * d, jy: -6 }, 330, E.sine)], my); await par([tw({ yw: -58 * d, ln: -5 * d, jy: 0 }, 330, E.sine)], my); }
-  await par([tw({ yw: 0, jy: 0, ln: 0, sq: 0 }, 300)], my);
-  pose('sit0'); for (var j = 0; j < 3; j++) { await pz({ ro: j % 2 ? 5 : -5 }, 280, E.sine, my); } await par([tw({ ro: 0 }, 300)], my); pose('laugh2'); await w(700, my); };
-AK.berguling = async function (my) { duduk('sit0'); await par([tw({ sq: .1 }, 200)], my); pose('laugh3');
-  await par([tw({ ro: 360, jy: -8, sq: 0 }, 1300, E.io), tw({ pt: 14 }, 650, E.sine)], my); S.ro = 0; await par([tw({ jy: 0, pt: 0 }, 250)], my);
-  await w(700, my); await par([tw({ ro: 0 }, 10)], my); pose('laugh4'); await w(600, my); await netral(300, my); };
-AK.menoleh = async function (my) { say('Ada apa ya? 👀', 2800); duduk('sit0'); await par([tw({ yw: -34 }, 700, E.io)], my); await w(500, my); pose('sit1');
-  await par([tw({ yw: 34 }, 900, E.io)], my); await w(500, my); pose('sit5'); await par([tw({ yw: 0 }, 650, E.io)], my); await w(600, my); };
-AK.mengintip = async function (my) { var vw = P.innerWidth || 360; await menghadap(-1, 250, my); duduk('sit1');
-  await pz({ x: vw - W * .45 }, 1000, E.io, my); await par([tw({ yw: -26, ro: -4 }, 450)], my); await w(1700, my);
-  pose('laugh4'); await w(600, my); await pz({ x: home().x, yw: 0, ro: 0 }, 1000, E.io, my); };
-AK.menari = async function (my) { say('♪ ♫', 4800); var ps = ['laugh1', 'laugh4', 'wave1', 'laugh0', 'laugh4'];
-  for (var i = 0; i < 6; i++) { var s = i % 2 ? 1 : -1; pose(ps[i % ps.length]);
-    await par([tw({ ro: 7 * s, yw: 18 * s, jy: -9 }, 260, E.out)], my); await par([tw({ jy: 0 }, 200, E.inn)], my); await par([tw({ sq: .08 }, 80)], my); await par([tw({ sq: 0 }, 140)], my); }
-  await netral(500, my); };
-AK.kupu_kupu = async function (my) {
-  var h = home(); duduk('sit5');
+AK.duduk_santai = async function (c, my) { await gp(c, 'sit0', 28, my); c.yawB = 12; await w(1100, my); await gp(c, 'sit1', 22, my); await w(1500, my); c.yawB = -10; await gp(c, 'sit5', 22, my); await w(1500, my); c.yawB = 0; await gp(c, 'sit0', 22, my); };
+AK.menguap = async function (c, my) { await gp(c, 'sit0', 28, my); c.say('Hoaaam… 🥱', 2800); await gp(c, 'laugh4', 18, my); c.pitB = -4; c.kick(-3); await w(1700, my); c.pitB = 0; await gp(c, 'sit0', 20, my); };
+AK.jilat_kaki = async function (c, my) { await gp(c, 'sit1', 28, my); await gp(c, 'lick0', 24, my);
+  for (var i = 0; i < 4; i++) { await gp(c, 'lick1', 8, my); await gp(c, 'lick0', 8, my); } await w(300, my); await gp(c, 'sit1', 24, my); };
+AK.cuci_muka = async function (c, my) { await gp(c, 'sit1', 28, my); await gp(c, 'lick0', 24, my);
+  for (var i = 0; i < 6; i++) { c.rollB = i % 2 ? 3 : -3; await gp(c, 'lick1', 12, my); await gp(c, 'lick0', 12, my); } c.rollB = 0; await gp(c, 'sit1', 24, my); await gp(c, 'laugh4', 20, my); await w(500, my); };
+AK.garuk_telinga = async function (c, my) { await gp(c, 'sit1', 28, my); await gp(c, 'lick0', 26, my); c.yawB = -10;
+  for (var i = 0; i < 8; i++) { c.rollB = i % 2 ? 5 : -5; await w(120, my); } c.rollB = 0; c.yawB = 0; await gp(c, 'sit1', 24, my); };
+AK.melambai = async function (c, my) { c.say('Hai hai! 👋', 3400); await gp(c, 'wave0', 26, my);
+  for (var i = 0; i < 5; i++) { await gp(c, 'wave1', 10, my); await gp(c, 'wave0', 10, my); } await gp(c, 'sit0', 26, my); };
+AK.mengeong = async function (c, my) { await gp(c, 'wave0', 28, my);
+  for (var i = 0; i < 2; i++) { c.say(i ? 'Meooong~' : 'Meong!', 1500); c.kick(-4); await pz(c.S, { jy: -8 }, 200, E.out, my); await pz(c.S, { jy: 0 }, 220, E.inn, my); await w(700, my); } await gp(c, 'sit0', 26, my); };
+AK.minta_makan = async function (c, my) {
+  if (K.kenyang >= 4 && Date.now() - K.kenyangT < 120000) { c.say('Aku kenyang banget… 🥱', 3000); await gp(c, 'sit2', 24, my); await w(2600, my); return; }
+  await gp(c, 'sit1', 26, my); c.say('Aku lapar 🍗 kasih makan dong…', 12000, true);
+  for (var i = 0; i < 6; i++) { await gp(c, 'wave0', 14, my); c.kick(-3); await gp(c, 'wave1', 10, my); await gp(c, 'sit1', 20, my); await w(900, my); }
+  c.diam(); c.say('Hmm… ya sudah 🙁', 2600); await gp(c, 'sit2', 22, my); await w(1800, my); };
+AK.tidur = async function (c, my) { await gp(c, 'sit2', 24, my); c.pitB = 7; var z = ['Zzz…', 'Zzz… zzz…', 'Zzzz~'];
+  for (var i = 0; i < 3; i++) { c.say(z[i], 2400); await pz(c, { sqT: .05 }, 1300, E.sine, my); await pz(c, { sqT: -.01 }, 1300, E.sine, my); }
+  c.diam(); c.sqT = 0; c.pitB = 0; await gp(c, 'sit0', 24, my); await gp(c, 'laugh4', 20, my); await w(600, my); };
+AK.peregangan = async function (c, my) { await gp(c, 'jump4', 40, my); await par([tw(c, { sqT: -.1 }, 900, E.io), tw(c, { pitB: 9 }, 900, E.io)], my); await w(1400, my);
+  await par([tw(c, { sqT: 0 }, 700, E.io), tw(c, { pitB: 0 }, 700, E.io)], my); await gp(c, 'sit1', 40, my); await gp(c, 'laugh4', 20, my); await w(500, my); };
+AK.jalan_santai = async function (c, my) { var h = c.home(); await jalanKe(c, clamp(h.x - rnd(130, 260), 60, 9999), h.y + rnd(0, 60), my, 62);
+  await gp(c, 'sit1', 24, my); c.yawB = -14; await w(800, my); await gp(c, 'sit5', 22, my); c.yawB = 12; await w(1000, my); c.yawB = 0; };
+AK.lari_keliling = async function (c, my) { c.say('Wuuush! 💨', 2000); var h = c.home(); await jalanKe(c, 60, h.y + 40, my, 230); await w(150, my); await jalanKe(c, h.x, h.y, my, 230); };
+AK.lompat_ditempat = async function (c, my) { var x0 = c.S.x, y0 = c.S.y; for (var i = 0; i < 3; i++) { await lompatKe(c, x0, y0, 36 + i * 10, 560, my); await w(100, my); } await gp(c, 'wave0', 26, my); await w(500, my); };
+AK.lompat_jauh = async function (c, my) { var h = c.home(); await lompatKe(c, h.x - rnd(130, 240), h.y + rnd(80, 190), 90, 900, my); await w(900, my); await lompatKe(c, h.x, h.y, 100, 950, my); };
+AK.kejar_ekor = async function (c, my) { await gp(c, 'sit5', 26, my);
+  for (var i = 0; i < 6; i++) { var d = i % 2 ? 1 : -1; await par([tw(c, { yawB: 48 * d, rollB: 5 * d }, 340, E.sine), tw(c.S, { jy: -5 }, 170, E.out)], my); await tw(c.S, { jy: 0 }, 170, E.inn); chk(my); }
+  await par([tw(c, { yawB: 0, rollB: 0 }, 300, E.io)], my); await gp(c, 'sit0', 24, my); await gp(c, 'laugh4', 20, my); await w(600, my); };
+AK.berguling = async function (c, my) { await gp(c, 'sit0', 28, my); await gp(c, 'wave0', 28, my); await gp(c, 'laugh1', 20, my); await gp(c, 'laugh2', 16, my); await gp(c, 'laugh3', 16, my);
+  c.rollB = 0; await par([tw(c, { rollB: 360 }, 1300, E.io), tw(c.S, { jy: -10 }, 650, E.sine)], my); await tw(c.S, { jy: 0 }, 300, E.inn); c.S.roll = 0; c.S.rollv = 0; c.rollB = 0;
+  await w(600, my); await gp(c, 'laugh4', 18, my); await gp(c, 'sit0', 22, my); };
+AK.menoleh = async function (c, my) { c.say('Ada apa ya? 👀', 2800); await gp(c, 'sit0', 28, my); c.yawB = -12; await w(500, my); await gp(c, 'sit1', 18, my); await w(600, my);
+  await gp(c, 'sit5', 18, my); await w(500, my); await gp(c, 'sit4', 16, my); await w(900, my); await gp(c, 'sit5', 16, my); c.yawB = 10; await gp(c, 'sit1', 18, my); await w(400, my); c.yawB = 0; await gp(c, 'sit0', 22, my); };
+AK.mengintip = async function (c, my) { var h = c.home(); await jalanKe(c, 80, h.y + 30, my, 90); await gp(c, 'sit1', 24, my);
+  await pz(c.S, { x: 26 }, 900, E.io, my); c.yawB = -22; c.rollB = -4; await w(1700, my); await gp(c, 'laugh4', 20, my); await w(600, my); c.yawB = 0; c.rollB = 0; await pz(c.S, { x: 90 }, 700, E.io, my); };
+AK.menari = async function (c, my) { c.say('♪ ♫', 4800); await gp(c, 'wave0', 26, my); var ps = ['laugh1', 'laugh2', 'laugh3', 'laugh2', 'laugh1', 'wave1'];
+  for (var i = 0; i < ps.length; i++) { var s = i % 2 ? 1 : -1; c.rollB = 7 * s; c.yawB = 16 * s; var a = c.go(ps[i], 16); await par([a, tw(c.S, { jy: -9 }, 240, E.out)], my); await pz(c.S, { jy: 0 }, 200, E.inn, my); c.kick(5); await w(120, my); }
+  c.rollB = 0; c.yawB = 0; await gp(c, 'sit0', 22, my); };
+AK.kupu_kupu = async function (c, my) {
+  var S = c.S; await gp(c, 'sit1', 26, my);
   var kp = D.createElement('div'); kp.className = 'uj-fx'; kp.textContent = '🦋'; kp.style.fontSize = '22px'; D.body.appendChild(kp);
-  var t0 = P.performance.now(), dur = 3800, sx = h.x - 190, sy = h.y + 150;
-  var kx = function (p) { return sx + (S.x - sx + 14) * p + Math.sin(p * 9) * 26; }, ky = function (p) { return sy + (S.y - sy + 10) * p + Math.cos(p * 7) * 20; };
-  var run = true; (function f(now) { var p = Math.min(1, (now - t0) / dur); kp.style.transform = 'translate3d(' + kx(p) + 'px,' + ky(p) + 'px,0) rotate(' + Math.sin(p * 30) * 14 + 'deg)'; if (run && p < 1) P.requestAnimationFrame(f); else kp.remove(); })(t0);
+  var t0 = P.performance.now(), dur = 3800, sx = S.x - 200, sy = S.y + 90, run = true;
+  var kx = function (p) { return sx + (S.x - sx - 4) * p + Math.sin(p * 9) * 26; }, ky = function (p) { return sy + (S.y - 70 - sy) * p + Math.cos(p * 7) * 18; };
+  (function f(now) { var p = Math.min(1, (now - t0) / dur); kp.style.transform = 'translate3d(' + kx(p) + 'px,' + ky(p) + 'px,0) rotate(' + Math.sin(p * 30) * 14 + 'deg)'; if (run && p < 1) P.requestAnimationFrame(f); else kp.remove(); })(t0);
   try {
-    for (var i = 0; i < 6; i++) { var p2 = Math.min(1, (i + 1) / 7); var dxk = kx(p2) - S.x - 40; await par([tw({ yw: clamp(dxk * .35, -34, 34), pt: -clamp((ky(p2) - S.y) * .02, -6, 6) }, 540, E.sine)], my); }
-    say('Tangkap! 🦋', 1800); await lompatKe(S.x - 10, S.y + 6, 440, 54, my); run = false; kp.remove(); pose('laugh4'); await w(700, my);
-  } finally { run = false; kp.remove(); }
-  await netral(500, my); };
-AK.mengendus = async function (my) { await menghadap(-1, 300, my); K.cy = null; K.wk = false; pose('walk3'); await par([tw({ pt: 10, sq: .04 }, 400)], my);
-  for (var i = 0; i < 3; i++) { await par([tw({ x: S.x - 22 }, 650, E.sine)], my); pose(i % 2 ? 'walk2' : 'walk3'); await par([tw({ pt: 14 }, 220, E.sine)], my); await par([tw({ pt: 8 }, 220, E.sine)], my); }
-  await par([tw({ pt: 0, sq: 0 }, 400)], my); duduk('sit0'); say('Wangi ayam goreng! 🍗', 2600); await w(1200, my); };
-AK.kaget = async function (my) { say('!?', 1800); duduk('sit0'); await par([tw({ st: .14, sq: -.05, pt: -6 }, 120, E.out)], my); pose('jump3');
-  await par([tw({ jy: -54, pt: -10 }, 260, E.out), tw({ x: Math.min(maxX(), S.x + 24) }, 520, E.sine)], my); await par([tw({ jy: 0, st: 0, pt: 6 }, 260, E.inn)], my);
-  pose('jump5'); await par([tw({ sq: .2, tx: .06 }, 90)], my); await w(600, my); duduk('sit0'); await netral(600, my); say('Ternyata cuma angin 😅', 2600); await w(1500, my); };
-AK.senyum_ceria = async function (my) { pose('laugh4'); await par([tw({ ro: 5, sc: 1.05 }, 450, E.back)], my); hati(5); await w(800, my);
-  pose('laugh2'); await par([tw({ ro: -5 }, 500, E.sine)], my); await w(900, my); await netral(500, my); };
-AK.mengantuk = async function (my) { say('Hoaaam… 🥱', 2500); duduk('sit0');
-  for (var i = 0; i < 3; i++) { await par([tw({ ln: 9, pt: 8, sq: .06 }, 1100, E.io)], my); await par([tw({ ln: 0, pt: 0, sq: 0 }, 260, E.out)], my); await w(160, my); }
-  pose('laugh2'); await par([tw({ st: .1, pt: -5 }, 600)], my); await w(900, my); await netral(500, my); };
-AK.berdiri = async function (my) { pose('wave0'); await par([tw({ st: .05 }, 500, E.back)], my); say('Ta-daaa! ✨', 2800);
-  var ps = ['wave1', 'laugh0', 'wave0']; for (var i = 0; i < 3; i++) { pose(ps[i]); await par([tw({ ro: 4, yw: 12 }, 380, E.sine)], my); await par([tw({ ro: -4, yw: -12 }, 380, E.sine)], my); }
-  await netral(700, my); };
-AK.turun_naik = async function (my) { var h = home(), by = maxY(); say('Jalan-jalan dulu ya~', 2500);
-  await lompatKe(Math.max(8, h.x - 70), h.y + 150, 800, 70, my); await lompatKe(Math.max(8, h.x - 150), by - 60, 900, 70, my);
-  await jalanKe(Math.max(8, h.x - 280), by, 2200, my); await w(600, my); await jalanKe(Math.max(8, h.x - 120), by, 1800, my); await lompatKe(h.x, h.y, 1100, 110, my); };
+    for (var i = 0; i < 6; i++) { var p2 = (i + 1) / 7; c.yawB = clamp((kx(p2) - S.x) * .12, -22, 22); c.pitB = clamp((S.y - 70 - ky(p2)) * -.04, -6, 6); await w(560, my); }
+    c.say('Tangkap! 🦋', 1800); await lompatKe(c, S.x - 8, S.y, 56, 460, my); run = false; kp.remove(); await gp(c, 'laugh4', 20, my); await w(700, my);
+  } finally { run = false; kp.remove(); c.yawB = 0; c.pitB = 0; } };
+AK.mengendus = async function (c, my) { var h = c.home(); await jalanKe(c, h.x - 40, h.y + 30, my, 70); c.pitB = 9;
+  for (var i = 0; i < 3; i++) { await jalanKe(c, c.S.x - 36, c.S.y, my, 34); await w(300, my); } c.pitB = 0; c.say('Wangi ayam goreng! 🍗', 2600); await w(1200, my); };
+AK.kaget = async function (c, my) { await gp(c, 'sit0', 28, my); c.say('!?', 1800); c.kick(-12); await lompatKe(c, c.S.x + 22, c.S.y, 62, 520, my); await w(500, my); await gp(c, 'sit0', 22, my); c.say('Ternyata cuma angin 😅', 2600); await w(1500, my); };
+AK.senyum_ceria = async function (c, my) { await gp(c, 'sit0', 28, my); await c.cross('laugh0', 220); chk(my); c.hati(5); c.kick(-4); await w(1700, my); await gp(c, 'laugh4', 20, my); await w(700, my); await gp(c, 'sit0', 22, my); };
+AK.mengantuk = async function (c, my) { c.say('Hoaaam… 🥱', 2500); await gp(c, 'sit0', 28, my);
+  for (var i = 0; i < 3; i++) { await par([tw(c, { pitB: 10, sqT: .05 }, 1100, E.io)], my); await par([tw(c, { pitB: 0, sqT: 0 }, 260, E.out)], my); await w(160, my); }
+  await gp(c, 'laugh4', 18, my); await w(700, my); await gp(c, 'sit0', 22, my); };
+AK.berdiri = async function (c, my) { await gp(c, 'wave0', 26, my); c.kick(-5); c.say('Ta-daaa! ✨', 2800);
+  var ps = ['laugh1', 'wave1', 'wave0']; for (var i = 0; i < 3; i++) { c.rollB = i % 2 ? 4 : -4; await gp(c, ps[i], 14, my); await w(350, my); } c.rollB = 0; await gp(c, 'sit0', 24, my); };
+AK.turun_naik = async function (c, my) { var h = c.home(); c.say('Jalan-jalan dulu ya~', 2500);
+  await lompatKe(c, h.x - 70, h.y + 150, 70, 800, my); await lompatKe(c, h.x - 150, c.maxY() - 20, 70, 900, my);
+  await jalanKe(c, h.x - 270, c.maxY(), my, 90); await w(500, my); await jalanKe(c, h.x - 120, c.maxY(), my, 80); await lompatKe(c, h.x, h.y, 110, 1100, my); };
+var SOLO = Object.keys(AK); K.AK = AK;
 
-var DAFTAR = Object.keys(AK);
-function pilihAk() {
-  var c = DAFTAR.filter(function (n) { return n !== K.lastAct; });
-  var n = c[Math.floor(Math.random() * c.length)];
-  if (n === 'minta_makan' && Date.now() - K.fedLast < 60000) n = 'senyum_ceria';
-  return n;
+// ------------------------------------------------------------------ interaksi dua kucing (14)
+var DU = {};
+function hadapan(A, B) { A.setFace(1); B.setFace(-1); }
+async function temu(A, B, my, jarak, y) {
+  var mx = clamp((A.S.x + B.S.x) / 2, 130, Math.max(140, vw() - 130)); y = y || 180; jarak = jarak || 96;
+  await Promise.all([jalanKe(A, mx - jarak / 2, y, my, 105), jalanKe(B, mx + jarak / 2, y, my, 105)]); chk(my); hadapan(A, B);
 }
+function kirim(emoji, dari, ke, ms, tinggi) {
+  var n = D.createElement('div'); n.className = 'uj-fx'; n.textContent = emoji; n.style.fontSize = '24px'; D.body.appendChild(n);
+  var t0 = P.performance.now(), x0 = dari.S.x - 10, y0 = dari.S.y - 70, x1 = ke.S.x - 10, y1 = ke.S.y - 70;
+  return new Promise(function (res) { (function f(now) { var p = Math.min(1, (now - t0) / ms);
+    n.style.transform = 'translate3d(' + (x0 + (x1 - x0) * p) + 'px,' + (y0 + (y1 - y0) * p - Math.sin(p * Math.PI) * (tinggi || 40)) + 'px,0) rotate(' + (p * 540) + 'deg)';
+    if (p < 1) P.requestAnimationFrame(f); else { n.remove(); res(); } })(t0); });
+}
+DU.saling_sapa = async function (A, B, my) { await temu(A, B, my); A.say('Hai Oyen! 👋', 2800); await gp(A, 'wave0', 26, my); await w(400, my);
+  B.say('Hai Pompom! 🧡', 2800); await Promise.all([gp(B, 'wave0', 26, my)]);
+  for (var i = 0; i < 4; i++) { A.go(i % 2 ? 'wave0' : 'wave1', 10); B.go(i % 2 ? 'wave1' : 'wave0', 10); await w(420, my); }
+  await Promise.all([gp(A, 'sit0', 26, my), gp(B, 'sit0', 26, my)]); };
+DU.kejar_kejaran = async function (A, B, my) { var h = A.home(); B.say('Tangkap aku kalau bisa! 😜', 2400);
+  for (var r = 0; r < 2; r++) {
+    var lari = [jalanKe(B, 70, 190, my, 215)]; await w(420, my); lari.push(jalanKe(A, 70, 190, my, 225)); await Promise.all(lari); chk(my);
+    lari = [jalanKe(B, h.x, 130, my, 215)]; await w(420, my); lari.push(jalanKe(A, h.x - 70, 130, my, 225)); await Promise.all(lari); chk(my);
+  }
+  A.say('Kena! 😸', 2000); await Promise.all([gp(A, 'laugh4', 20, my), gp(B, 'laugh4', 20, my)]); await w(900, my); };
+DU.tos_lompat = async function (A, B, my) { await temu(A, B, my, 170); var mx = (A.S.x + B.S.x) / 2, y = A.S.y;
+  A.say('Siap? 3-2-1…', 2000); await w(900, my);
+  await Promise.all([lompatKe(A, mx - 26, y, 96, 760, my), lompatKe(B, mx + 26, y, 96, 760, my).then(function () { })]); chk(my);
+  fx('✨', mx - 12, y - 120, 0, -10, 900, 30); A.say('Tos! 🙌', 1800); B.say('Yeay! 🧡', 1800); A.hati(2); B.hati(2); await w(1500, my);
+  await Promise.all([gp(A, 'sit0', 26, my), gp(B, 'sit0', 26, my)]); hadapan(A, B); };
+DU.berbagi_makan = async function (A, B, my) { await temu(A, B, my, 130); A.say('Ini buat kamu 🍗', 2400); await gp(A, 'wave0', 26, my); await kirim('🍗', A, B, 800, 46); chk(my);
+  B.say('Nyam! Makasih Pompom 😻', 3000); await Promise.all([gp(B, 'laugh4', 20, my)]);
+  for (var i = 0; i < 4; i++) { await gp(B, 'sit0', 8, my); await gp(B, 'laugh4', 8, my); } B.hati(3); A.hati(2); await w(600, my); await Promise.all([gp(A, 'sit0', 26, my), gp(B, 'sit0', 26, my)]); };
+DU.saling_merawat = async function (A, B, my) { await temu(A, B, my, 88); await Promise.all([gp(A, 'sit1', 26, my), gp(B, 'sit1', 26, my)]); hadapan(A, B);
+  A.say('Sini kubersihkan 🧼', 2400); await gp(A, 'lick0', 24, my); for (var i = 0; i < 4; i++) { await gp(A, 'lick1', 8, my); await gp(A, 'lick0', 8, my); }
+  B.say('Gantian ya! 😽', 2200); await gp(B, 'lick0', 24, my); for (var j = 0; j < 4; j++) { await gp(B, 'lick1', 8, my); await gp(B, 'lick0', 8, my); }
+  A.hati(3); B.hati(3); await w(700, my); await Promise.all([gp(A, 'sit1', 24, my), gp(B, 'sit1', 24, my)]); };
+DU.menari_bareng = async function (A, B, my) { await temu(A, B, my, 104); A.say('♪ Ayo menari! ♫', 4800); B.say('♫ Satu, dua, tiga! ♪', 4800);
+  var ps = ['laugh1', 'laugh2', 'laugh3', 'laugh2', 'laugh1', 'wave1'];
+  for (var i = 0; i < ps.length; i++) { var s = i % 2 ? 1 : -1; A.rollB = 7 * s; B.rollB = -7 * s; A.yawB = 16 * s; B.yawB = -16 * s;
+    await par([A.go(ps[i], 16), B.go(ps[(i + 1) % ps.length], 16), tw(A.S, { jy: -9 }, 240, E.out), tw(B.S, { jy: -9 }, 240, E.out)], my);
+    await par([tw(A.S, { jy: 0 }, 200, E.inn), tw(B.S, { jy: 0 }, 200, E.inn)], my); A.kick(5); B.kick(5); await w(100, my); }
+  A.rollB = B.rollB = A.yawB = B.yawB = 0; await Promise.all([gp(A, 'sit0', 22, my), gp(B, 'sit0', 22, my)]); hadapan(A, B); };
+DU.tidur_bareng = async function (A, B, my) { await temu(A, B, my, 82); await Promise.all([gp(A, 'sit2', 24, my), gp(B, 'sit2', 24, my)]); hadapan(A, B);
+  A.pitB = B.pitB = 6; A.say('Zzz…', 2400); await w(1200, my); B.say('Zzz… zzz…', 2400);
+  for (var i = 0; i < 3; i++) { await par([tw(A, { sqT: .05 }, 1200, E.sine), tw(B, { sqT: .05 }, 1300, E.sine)], my); await par([tw(A, { sqT: -.01 }, 1200, E.sine), tw(B, { sqT: -.01 }, 1300, E.sine)], my); }
+  A.sqT = B.sqT = A.pitB = B.pitB = 0; A.say('Hoaaam, sudah pagi? 🥱', 2600); await Promise.all([gp(A, 'laugh4', 20, my), gp(B, 'laugh4', 20, my)]); await w(900, my);
+  await Promise.all([gp(A, 'sit0', 22, my), gp(B, 'sit0', 22, my)]); };
+DU.main_bola = async function (A, B, my) { await temu(A, B, my, 230, 190); A.say('Tangkap bolanya! 🧶', 2200); await gp(A, 'sit1', 26, my); hadapan(A, B);
+  var p = [A, B, A, B];
+  for (var i = 0; i < 3; i++) { var d = p[i], k = p[i + 1]; d.kick(-5); await kirim('🧶', d, k, 850, 70); chk(my);
+    k.say(i % 2 ? 'Hap! 😸' : 'Hup! 😺', 1200); await lompatKe(k, k.S.x, k.S.y, 44, 480, my); hadapan(A, B); }
+  A.hati(2); B.hati(2); await w(700, my); await Promise.all([gp(A, 'sit0', 22, my), gp(B, 'sit0', 22, my)]); };
+DU.petak_umpet = async function (A, B, my) { var h = A.home(); A.say('Aku hitung ya… 1, 2, 3 🙈', 2600); await gp(A, 'sit1', 26, my); A.yawB = 20; await w(1200, my);
+  await jalanKe(B, 60, 200, my, 150); await Promise.all([gp(B, 'sit1', 26, my)]); await pz(B.S, { x: 24 }, 500, E.io, my); A.yawB = 0;
+  A.say('Oyen di mana ya…? 👀', 2800); await jalanKe(A, h.x - 120, 150, my, 70); await jalanKe(A, h.x - 40, 190, my, 70); await jalanKe(A, 150, 200, my, 80);
+  B.yawB = -20; await w(300, my); A.say('Ketemu! 😸', 2000); await lompatKe(A, 96, 200, 50, 520, my); B.yawB = 0; B.say('Aaah ketahuan! 🙀', 2200);
+  await Promise.all([gp(A, 'laugh4', 20, my), gp(B, 'laugh4', 20, my)]); await w(1100, my); };
+DU.peluk_sayang = async function (A, B, my) { await temu(A, B, my, 66); await Promise.all([gp(A, 'sit1', 26, my), gp(B, 'sit1', 26, my)]); hadapan(A, B);
+  A.rollB = 6; B.rollB = -6; A.yawB = 10; B.yawB = -10; A.say('Sayang Oyen 💕', 3000); await w(900, my); B.say('Sayang Pompom 🧡', 3000);
+  A.hati(4, '💕'); B.hati(4, '🧡'); await Promise.all([gp(A, 'laugh4', 18, my), gp(B, 'laugh4', 18, my)]); await w(1500, my);
+  A.rollB = B.rollB = A.yawB = B.yawB = 0; await Promise.all([gp(A, 'sit0', 22, my), gp(B, 'sit0', 22, my)]); };
+DU.ngobrol_tertawa = async function (A, B, my) { await temu(A, B, my, 100); await Promise.all([gp(A, 'sit1', 26, my), gp(B, 'sit1', 26, my)]); hadapan(A, B);
+  var l = [['Kenapa ayam nyebrang jalan? 🐔', 'Kenapa hayo?'], ['Mau ke warung Ungkep Jowo! 🍗', 'Hahaha! 😹']];
+  A.say(l[0][0], 2600); await w(1800, my); B.say(l[0][1], 2000); await w(1500, my); A.say(l[1][0], 2600); await w(1700, my);
+  B.say(l[1][1], 2400); await Promise.all([gp(A, 'laugh4', 18, my), gp(B, 'laugh2', 14, my)]); await Promise.all([gp(B, 'laugh3', 14, my)]); await w(1200, my);
+  await Promise.all([gp(A, 'sit0', 22, my), gp(B, 'sit0', 22, my)]); hadapan(A, B); };
+DU.adu_lari = async function (A, B, my) { var h = A.home(); A.say('Lomba lari! Siap… mulai! 🏁', 2200); await w(900, my);
+  var a = jalanKe(A, 70, 150, my, 200), b = jalanKe(B, 70, 210, my, 220); await Promise.all([a, b]); chk(my); B.say('Aku menang! 🏆', 2200); A.say('Curang~ ayo lagi!', 2200); await w(1100, my);
+  var a2 = jalanKe(A, h.x, 130, my, 225), b2 = jalanKe(B, h.x - 100, 190, my, 205); await Promise.all([a2, b2]); chk(my); A.say('Aku yang menang! 🥇', 2200); await Promise.all([gp(A, 'laugh4', 20, my), gp(B, 'laugh4', 20, my)]); await w(900, my); };
+DU.lomba_lompat = async function (A, B, my) { await temu(A, B, my, 180, 200); var t = [[A, 52, 'Segini!'], [B, 78, 'Aku lebih tinggi! 😼'], [A, 100, 'Lihat ini! 😸'], [B, 124, 'Juara! 🏆']];
+  for (var i = 0; i < t.length; i++) { var c = t[i][0]; c.say(t[i][2], 1500); await lompatKe(c, c.S.x, c.S.y, t[i][1], 600 + i * 60, my); hadapan(A, B); await w(250, my); }
+  await Promise.all([gp(A, 'laugh4', 20, my), gp(B, 'laugh4', 20, my)]); await w(800, my); };
+DU.kaget_bareng = async function (A, B, my) { await temu(A, B, my, 90); await Promise.all([gp(A, 'sit1', 26, my), gp(B, 'sit1', 26, my)]); hadapan(A, B);
+  fx('🐞', A.S.x + 40, A.S.y - 70, 8, -12, 1500, 22); A.say('Eh, ada kepik! 🐞', 2000); B.say('Wah!', 1600); A.kick(-12); B.kick(-12);
+  await Promise.all([lompatKe(A, A.S.x - 20, A.S.y, 56, 480, my), lompatKe(B, B.S.x + 20, B.S.y, 56, 480, my)]); hadapan(A, B); await w(500, my);
+  A.say('Ternyata lucu~ 😸', 2200); B.say('Hihihi 😹', 2200); await Promise.all([gp(A, 'laugh4', 20, my), gp(B, 'laugh4', 20, my)]); await w(900, my); };
+var DUET = Object.keys(DU); K.DU = DU;
 
 // ------------------------------------------------------------------ pengatur giliran (tiap ±5 detik)
-function mulaiGiliran(delay) {
+function aktifCats() { return K.cats.filter(function (c) { return c.aktif; }); }
+function pilihAksi() {
+  if (K.paksa) { var pn = K.paksa, pc = K[K.paksaC || 'pom']; if (DU[pn]) return { n: pn, f: function (my) { return DU[pn](K.pom, K.oy, my); } }; return { n: pn, f: function (my) { return AK[pn](pc, my); } }; }
+  var adm = K.mod === 'admin' && K.oy && K.oy.aktif, n, c;
+  if (adm && Math.random() < .55) {
+    var dl = DUET.filter(function (x) { return x !== K.lastAct; }); n = pick(dl);
+    return { n: n, f: function (my) { return DU[n](K.pom, K.oy, my); } };
+  }
+  c = adm && Math.random() < .5 ? K.oy : K.pom;
+  var sl = SOLO.filter(function (x) { return x !== K.lastAct; }); n = pick(sl);
+  if (n === 'minta_makan' && Date.now() - K.fedLast < 60000) n = 'senyum_ceria';
+  return { n: n, f: function (my) { return AK[n](c, my); } };
+}
+function giliran(delay) {
   clearTimeout(K.timer);
-  K.timer = setTimeout(function () { jalankan(pilihAk()); }, delay == null ? 5000 : delay);
+  K.timer = setTimeout(function () { var a = pilihAksi(); K.jalankan(a.n, a.f); }, delay == null ? 5000 : delay);
 }
-function jalankan(nama, fn) {
-  if (K.sembunyi) { mulaiGiliran(3000); return; }
-  stopAll(); var my = tok; diam(); K.lastAct = nama || K.lastAct; K.sibuk = nama || 'x'; K.cy = null; K.wk = false;
-  (async function () { try { await (fn ? fn(my) : AK[nama](my)); chk(my); await pulang(my); } catch (e) { if (e !== 'batal') console.warn(e); } })()
-    .then(function () { if (my === tok) { K.sibuk = ''; mulaiGiliran(5000); } });
-}
-K.hide = function () { K.sembunyi = true; root.classList.add('sembunyi'); diam(); };
-K.show = function () { K.sembunyi = false; root.classList.remove('sembunyi'); };
-K.kabarBaru = function (t) { say(t, 6000); hati(2); };
+K.jalankan = function (nama, fn) {
+  if (K.sembunyi) { giliran(3000); return; }
+  stopAll(); var my = GT; aktifCats().forEach(function (c) { c.diam(); }); K.lastAct = nama; K.sibuk = nama;
+  (async function () {
+    try { await fn(my); chk(my); await Promise.all(aktifCats().map(function (c) { return pulang(c, my); })); }
+    catch (e) { if (e !== 'batal') console.warn(e); }
+  })().then(function () { if (my === GT) { K.sibuk = ''; giliran(5000); } });
+};
+K.hide = function () { K.sembunyi = true; K.cats.forEach(function (c) { c.el.classList.add('sembunyi'); c.diam(); }); };
+K.show = function () { K.sembunyi = false; K.cats.forEach(function (c) { c.el.classList.remove('sembunyi'); }); };
+K.kabarBaru = function (t) { K.pom.say(t, 6000); K.pom.hati(2); };
 
 // ------------------------------------------------------------------ sambutan: tersenyum, melompat dari kiri ke kanan, lalu melambai
-K.sambut = function (c) {
-  K.show();
-  jalankan('sambut', async function (my) {
-    var h = home(); S.x = -W; S.y = h.y + 62; S.op = 0; S.dx = 1; S.sc = 1; S.jy = 0; pose('wave1', true);
-    await par([tw({ op: 1, x: 4 }, 450, E.out), tw({ ro: 3 }, 300, E.sine)], my);
-    say(c.sapa, 5200); hati(3); await w(900, my);
-    var goal = h.x, n = Math.max(3, Math.round((goal - S.x) / 78));
+K.sambut = function (cfg) {
+  K.show(); var c = K.pom;
+  K.jalankan('sambut', async function (my) {
+    var h = c.home(), S = c.S; S.x = -64; S.y = h.y + 66; S.op = 0; S.jy = 0; c.setFace(1); c.set('sit1');
+    await par([tw(S, { op: 1 }, 380, E.out), tw(S, { x: 40 }, 520, E.out)], my);
+    c.say(cfg.sapa, 5200); c.hati(3); await gp(c, 'laugh4', 18, my); await w(500, my); await gp(c, 'sit1', 22, my);
+    var n = Math.max(3, Math.round((h.x - S.x) / 76));
     for (var i = 1; i <= n; i++) {
-      var tx = S.x + (goal - S.x) / (n - i + 1);
-      await lompatKe(tx, i === n ? h.y : h.y + 62 + (i % 2 ? 8 : -2), 640, 34 + (i % 3) * 10, my);
-      pose('wave1'); await par([tw({ jy: -4, ro: 4 }, 100, E.out)], my); await par([tw({ jy: 0, ro: 0 }, 120, E.inn)], my);
+      var tx = S.x + (h.x - S.x) / (n - i + 1);
+      await lompatKe(c, tx, i === n ? h.y : h.y + 66 + (i % 2 ? 10 : -4), 40 + (i % 3) * 12, 640, my);
     }
-    await par([tw({ dx: -1, ro: 0 }, 450, E.io)], my);
-    say('Halo ' + (c.nama || '') + '! Mau pesan apa hari ini? 🍛', 5600);
-    cyc(['wave0', 'wave1'], 3.6); await par([tw({ yw: 14 }, 400, E.io)], my); await w(2600, my); cyc(null); duduk('wave1');
-    await par([tw({ yw: 0 }, 400, E.io)], my);
-    if (c.kabar) { say(c.kabar, 6000); await w(2500, my); }
-    await w(900, my); duduk('sit0'); await netral(500, my);
+    c.say('Halo ' + (cfg.nama || '') + '! Mau pesan apa hari ini? 🍛', 5600);
+    await gp(c, 'wave0', 26, my);
+    for (var k = 0; k < 6; k++) { await gp(c, 'wave1', 10, my); await gp(c, 'wave0', 10, my); }
+    if (cfg.kabar) { c.say(cfg.kabar, 6000); await w(2500, my); }
+    await w(500, my);
+  });
+};
+
+// ------------------------------------------------------------------ halaman admin: Oyen datang menemani Pompom
+K.masukOyen = function () {
+  K.show(); var A = K.pom, B = K.oy;
+  K.jalankan('oyen_masuk', async function (my) {
+    var h = B.home(), S = B.S; B.aktif = true; B.el.style.display = ''; B.set('sit1'); B.setFace(1); S.x = -64; S.y = h.y + 60; S.op = 1;
+    A.say('Ada yang datang… 👀', 1800); A.yawB = -14; await w(500, my);
+    await jalanKe(B, h.x, h.y, my, 130); A.yawB = 0; hadapan(B, A); B.setFace(1); A.setFace(1);
+    A.say('Hai Oyen! Selamat datang di halaman admin 😸', 3200); await gp(A, 'wave0', 26, my); await w(600, my);
+    B.say('Hai Pompom! Ayo jaga warung bareng 🧡', 3200); await gp(B, 'wave0', 26, my);
+    for (var i = 0; i < 4; i++) { A.go(i % 2 ? 'wave0' : 'wave1', 10); B.go(i % 2 ? 'wave1' : 'wave0', 10); await w(420, my); }
+    await w(500, my);
+  });
+};
+K.keluarOyen = function () {
+  var B = K.oy; if (!B || !B.aktif || B.pergi) return; B.pergi = true;
+  K.jalankan('oyen_pergi', async function (my) {
+    B.say('Dadah~ aku istirahat dulu 👋', 2200); await gp(B, 'wave0', 26, my); await w(900, my); B.diam();
+    await jalanKe(B, 56, B.S.y + 30, my, 150); await pz(B.S, { x: -80, op: 0 }, 800, E.io, my);
+    B.aktif = false; B.pergi = false; B.el.style.display = 'none';
   });
 };
 
 // ------------------------------------------------------------------ memberi makan
 var FOOD = { '🍗': ['Nyam nyam! Ayam goreng kriuk 😻', 'ayam'], '🍤': ['Udang goreng! Gurih banget~ 😋', 'udang'], '🐟': ['Ikan! Favoritkuuu 🐟💕', 'ikan'],
   '🥩': ['Dagingnya empuk! 😍', 'daging'], '🥛': ['Slurp… susunya enak~ 🥛', 'susu'], '🍚': ['Nasi hangat… ngenyangin 🍚', 'nasi'] };
-K.beriMakan = function (e, btn) {
-  var r = btn ? btn.getBoundingClientRect() : { left: S.x, top: S.y + H + 20 };
-  var mx = S.x + W / 2 - 8, my2 = S.y + S.jy + H * .4;
-  var sx = r.left, sy = r.top; fx(e, sx, sy, mx - sx, my2 - sy, 700, 24);
+K.beriMakan = function (c, e, btn) {
+  var r = btn ? btn.getBoundingClientRect() : { left: c.S.x, top: c.S.y + 20 };
+  var mx = c.S.x - 8, my2 = c.S.y - 52, sx = r.left, sy = r.top; fx(e, sx, sy, mx - sx, my2 - sy, 700, 24);
   K.kenyang = (Date.now() - K.kenyangT > 120000) ? 1 : K.kenyang + 1; K.kenyangT = Date.now(); K.fedLast = Date.now();
   var info = FOOD[e] || ['Enak!', 'makanan'], penuh = K.kenyang >= 4;
-  jalankan('makan', async function (my) {
-    duduk('sit5'); await par([tw({ yw: 0, pt: -8, st: .06 }, 300)], my); await w(520, my);
-    pose('laugh1'); await par([tw({ sc: 1.06 }, 160, E.out)], my);                  // hap! membuka mulut
-    cyc(['lick0', 'lick1'], 5); await par([tw({ sc: 1, pt: 4, ln: 3 }, 200)], my);   // mengunyah
-    for (var i = 0; i < 4; i++) { await pz({ ln: -3, yw: 6 }, 260, E.sine, my); await pz({ ln: 3, yw: -6 }, 260, E.sine, my); }
-    cyc(null); pose('laugh4'); await par([tw({ pt: 0, ln: 0, yw: 0, st: 0 }, 400, E.io)], my);
-    say(penuh ? 'Huaah… kenyang! Makasih ya 🥰' : info[0], 3400); hati(4);
-    await par([tw({ jy: -8 }, 220, E.out)], my); await par([tw({ jy: 0 }, 220, E.inn)], my); await w(1800, my); await netral(500, my); });
+  K.jalankan('makan', async function (my) {
+    await gp(c, 'sit0', 28, my); await w(560, my); c.say('…', 900);
+    await gp(c, 'laugh4', 18, my);
+    for (var i = 0; i < 5; i++) { c.rollB = i % 2 ? 3 : -3; await gp(c, 'sit0', 8, my); await gp(c, 'laugh4', 8, my); }
+    c.rollB = 0; c.say(penuh ? 'Huaah… kenyang! Makasih ya 🥰' : info[0], 3400); c.hati(4); c.kick(-6); await w(2000, my);
+  });
 };
 
-// ------------------------------------------------------------------ interaksi
-root.addEventListener('click', function () {
-  jalankan('sentuh', async function (my) {
-    say('Meong! Mau tanya apa? 🐾', 2800); hati(3); pose('laugh4');
-    await par([tw({ sq: .16 }, 120, E.out)], my);
-    await par([tw({ jy: -26, sq: -.06 }, 260, E.out)], my); await par([tw({ jy: 0 }, 260, E.inn)], my);
-    await par([tw({ sq: .12 }, 80)], my); await par([tw({ sq: 0 }, 260, E.back)], my);
-    await w(1200, my); });
-}, true);
+// ------------------------------------------------------------------ interaksi pengguna
+function reaksi(c) {
+  K.jalankan('sentuh', async function (my) {
+    c.say(c === K.oy ? 'Nyaaa! Mau main? 🧡' : 'Meong! Mau tanya apa? 🐾', 2800); c.hati(3);
+    await gp(c, 'sit0', 28, my); await lompatKe(c, c.S.x, c.S.y, 34, 460, my); await gp(c, 'laugh4', 18, my); await w(1100, my);
+  });
+}
+function pasangKlik(c) { c.hit.addEventListener('click', function () { reaksi(c); }, true); }
 D.addEventListener('pointerdown', function (e) {
-  if (K.sembunyi || K.sibuk === 'sambut') return;
+  if (K.sembunyi || K.mod !== 'user' || K.sibuk === 'sambut') return;
   var t = e.target; if (!t || !t.closest) return;
-  if (t.closest('#uj-kucing,#uj-gelembung,button,a,input,select,textarea,label,table,[data-c],[role=dialog],[data-testid=stDialog],[data-baseweb],[data-testid=stExpander],iframe,svg')) return;
-  var tx = e.clientX - W / 2, ty = e.clientY - H * .7;
-  jalankan('panggil', async function (my) {
-    say('Datang~ 🐾', 1600); var far = Math.hypot(tx - S.x, ty - S.y);
-    if (far > 140) await lompatKe(tx, ty, Math.min(1100, 520 + far), 70, my); else await jalanKe(tx, ty, 900, my);
-    pose('wave1'); hati(2); await w(2400, my); });
+  if (t.closest('.uj-cat,.uj-gelembung,button,a,input,select,textarea,label,table,[data-c],[role=dialog],[data-testid=stDialog],[data-baseweb],[data-testid=stExpander],iframe,svg')) return;
+  var c = K.pom, tx = e.clientX, ty = e.clientY + 70;
+  K.jalankan('panggil', async function (my) {
+    c.say('Datang~ 🐾', 1600); var far = Math.hypot(tx - c.S.x, ty - c.S.y);
+    if (far > 150) await lompatKe(c, tx, ty, Math.min(100, 44 + far * .1), Math.min(1100, 520 + far), my); else await jalanKe(c, tx, ty, my, 90);
+    c.hati(2); await gp(c, 'laugh4', 18, my); await w(2000, my);
+  });
 }, true);
-P.addEventListener('resize', function () { if (!K.sibuk) { var h = home(); S.x = h.x; } });
+P.addEventListener('resize', function () { if (!K.sibuk) K.cats.forEach(function (c) { if (c.aktif) { var h = c.home(); c.S.x = h.x; } }); });
 D.addEventListener('visibilitychange', function () { lastT = 0; });
 
 // ------------------------------------------------------------------ mulai
-K.jalankan = jalankan; K.AK = AK;
+function aturKlik() { if (K.pom) K.pom.hit.setAttribute('data-c', K.mod === 'user' ? 'k|chat' : ''); if (K.pom && K.mod !== 'user') K.pom.hit.removeAttribute('data-c'); }
+function muatAtlas(url) { return new Promise(function (res) { var im = new P.Image(); im.onload = im.onerror = function () { res(); }; im.src = url; }); }
+K.mode = function (m, cfg) {
+  cfg = cfg || {}; K.show();
+  var admin = m === 'admin';
+  if (admin) {
+    if (!K.oy) {
+      K.oy = new Cat('oyen', CFG.urls.oyen, 'Oyen'); K.oy.slot = 1; K.oy.aktif = false; K.oy.el.style.display = 'none'; K.cats.push(K.oy); pasangKlik(K.oy);
+      K.oy.S.op = 1;
+    }
+    K.mod = 'admin'; aturKlik();
+    if (!K.oy.aktif && !K.masuk) { K.masuk = 1; muatAtlas(CFG.urls.oyen).then(function () { K.masuk = 0; if (K.mod === 'admin') K.masukOyen(); }); }
+  } else {
+    var dariAdmin = K.mod === 'admin'; K.mod = 'user'; aturKlik();
+    if (cfg.sapa) K.sambut(cfg);
+    else { if (dariAdmin) K.keluarOyen(); if (cfg.kabar) K.kabarBaru(cfg.kabar); }
+  }
+};
 P.__ujKucing = K;
-var h0 = home(); S.x = h0.x; S.y = h0.y; lastX = S.x; lastY = S.y; pose('sit0', true);
-P.requestAnimationFrame(frame);
-if (CFG.sapa) K.sambut(CFG); else { mulaiGiliran(2500); if (CFG.kabar) setTimeout(function () { K.kabarBaru(CFG.kabar); }, 1500); }
+K.pom = new Cat('pompom', CFG.urls.pompom, 'Pompom'); K.pom.slot = 0; K.cats.push(K.pom); pasangKlik(K.pom);
+(function () {
+  var h = K.pom.home(); K.pom.S.x = h.x; K.pom.S.y = h.y; K.pom.lx = h.x; K.pom.ly = h.y; K.pom.aktif = true;
+  P.requestAnimationFrame(frame);
+  muatAtlas(CFG.urls.pompom).then(function () {
+    K.pom.S.op = 1; K.siap = true;
+    if (CFG.mode === 'admin') K.mode('admin', CFG);
+    else if (CFG.sapa) { K.mod = 'user'; aturKlik(); K.sambut(CFG); }
+    else { K.mod = 'user'; aturKlik(); giliran(2500); if (CFG.kabar) setTimeout(function () { K.kabarBaru(CFG.kabar); }, 1500); }
+  });
+})();

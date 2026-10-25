@@ -26,7 +26,9 @@ import tema
 st.html(tema.hero("ADMIN", "UNGKEP JOWO"))
 import streamlit.components.v1 as _components
 import kucing as _kucing
-(st.iframe if hasattr(st, "iframe") else (lambda h, height: _components.html(h, height=0)))(_kucing.js(sembunyi=True), height=1)
+(st.iframe if hasattr(st, "iframe") else (lambda h, height: _components.html(h, height=0)))(
+    _kucing.js(mode="admin", lengkap=not st.session_state.get("_kucing_ada")), height=1)
+st.session_state["_kucing_ada"] = True
 
 KAT_MASTER = ["Nasi", "Lauk", "Lain-lain"]                 # menu master: makanan saja
 KAT_MAKANAN = ["Nasi", "Ayam Sayur", "Lauk", "Lain-lain"]  # urutan tampil (Ayam Sayur = data lama)

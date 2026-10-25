@@ -1,5 +1,5 @@
 """Meong, kucing maskot gembul: menyapa setelah login, berkeliaran dengan animasi halus, minta makan, dan bisa ditanya.
-Karakter "Pompom" memakai pose dari ilustrasi (assets/pompom.json, potongan gambar) yang digerakkan skrip 3D semu (assets/kucing.js)."""
+Pompom (abu-abu) menemani pelanggan; di halaman admin Oyen (oranye) ikut hadir. Gambar ada di static/, mesin animasi di assets/kucing.js."""
 from __future__ import annotations
 
 import json
@@ -10,44 +10,49 @@ import logic
 import orders
 
 _JS = Path(__file__).parent / "assets" / "kucing.js"
-_SPR = Path(__file__).parent / "assets" / "pompom.json"
+_META = Path(__file__).parent / "assets" / "pompom_meta.json"
+_STAT = Path(__file__).parent / "static"
 
 
 def css() -> str:
     return """
-#uj-kucing{position:fixed;left:0;top:0;width:96px;height:104px;z-index:90;cursor:pointer;user-select:none;-webkit-user-select:none;
- -webkit-tap-highlight-color:transparent;touch-action:manipulation;perspective:640px;will-change:transform;}
-#uj-kucing.sembunyi{display:none;}
-#uj-kucing .tilt{position:absolute;left:0;right:0;bottom:0;height:100%;transform-origin:50% 100%;transform-style:preserve-3d;will-change:transform;
- filter:drop-shadow(0 3px 2px rgba(90,45,20,.28));}
-#uj-kucing .tilt img{position:absolute;left:50%;bottom:0;transform:translateX(-50%);pointer-events:none;max-width:none;-webkit-user-drag:none;}
-#uj-kucing .bayang{position:absolute;left:50%;bottom:-3px;width:70px;height:12px;border-radius:50%;transform:translateX(-50%);
+.uj-cat{position:fixed;left:0;top:0;z-index:90;pointer-events:none;perspective:720px;will-change:transform,opacity;user-select:none;-webkit-user-select:none;}
+.uj-cat.sembunyi{display:none!important;}
+.uj-cat .tilt{position:absolute;inset:0;transform-origin:50% 96%;transform-style:preserve-3d;will-change:transform;
+ filter:drop-shadow(0 3px 2px rgba(90,45,20,.25));}
+.uj-cat .spr{position:absolute;left:0;top:0;background-repeat:no-repeat;pointer-events:none;will-change:opacity;}
+.uj-cat .bayang{position:absolute;left:50%;bottom:0;width:78px;height:12px;border-radius:50%;transform:translateX(-50%);
  background:radial-gradient(ellipse at center,rgba(90,45,20,.38),rgba(90,45,20,0) 70%);pointer-events:none;}
-#uj-gelembung{position:fixed;z-index:91;max-width:220px;background:#FFFAF0;color:#4A2410;border:2px solid #F0CC9C;border-radius:16px;
+.uj-cat .hit{position:absolute;left:50%;bottom:0;width:84px;height:92px;transform:translateX(-50%);pointer-events:auto;cursor:pointer;
+ -webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+.uj-gelembung{position:fixed;z-index:95;max-width:220px;background:#FFFAF0;color:#4A2410;border:2px solid #F0CC9C;border-radius:16px;
  padding:.45rem .7rem;font:700 .8rem/1.3 'Nunito',system-ui,sans-serif;box-shadow:0 4px 0 rgba(224,160,90,.5),0 6px 14px rgba(120,60,20,.2);
- opacity:0;transform:translateY(-6px) scale(.96);transition:opacity .25s,transform .25s;pointer-events:none;left:0;top:0;min-width:96px;}
-#uj-gelembung.tampil{opacity:1;transform:none;}
-#uj-gelembung.menu{pointer-events:auto;}
-#uj-gelembung::after{content:"";position:absolute;left:var(--ekor,24px);top:-8px;width:12px;height:12px;background:#FFFAF0;border-left:2px solid #F0CC9C;border-top:2px solid #F0CC9C;transform:rotate(45deg);}
-#uj-gelembung.atas::after{top:auto;bottom:-8px;border:0;border-right:2px solid #F0CC9C;border-bottom:2px solid #F0CC9C;}
-#uj-gelembung .mkn{display:flex;gap:.3rem;margin-top:.4rem;flex-wrap:wrap}
-#uj-gelembung .mkn button{font-size:1.25rem;line-height:1;border:2px solid #F0CC9C;background:#FFF1DB;border-radius:12px;padding:.25rem .4rem;cursor:pointer;transition:transform .12s}
-#uj-gelembung .mkn button:active{transform:scale(.88)}
-.uj-fx{position:fixed;z-index:92;pointer-events:none;left:0;top:0;will-change:transform,opacity;}
-@media (prefers-reduced-motion:reduce){#uj-kucing{display:none}}
+ opacity:0;transform:translateY(-6px);transition:opacity .25s;pointer-events:none;left:0;top:0;min-width:96px;}
+.uj-gelembung.tampil{opacity:1;}
+.uj-gelembung.menu{pointer-events:auto;}
+.uj-gelembung::after{content:"";position:absolute;left:var(--ekor,24px);top:-8px;width:12px;height:12px;background:#FFFAF0;border-left:2px solid #F0CC9C;border-top:2px solid #F0CC9C;transform:rotate(45deg);}
+.uj-gelembung.atas::after{top:auto;bottom:-8px;border:0;border-right:2px solid #F0CC9C;border-bottom:2px solid #F0CC9C;}
+.uj-gelembung .mkn{display:flex;gap:.3rem;margin-top:.4rem;flex-wrap:wrap}
+.uj-gelembung .mkn button{font-size:1.25rem;line-height:1;border:2px solid #F0CC9C;background:#FFF1DB;border-radius:12px;padding:.25rem .4rem;cursor:pointer;transition:transform .12s}
+.uj-gelembung .mkn button:active{transform:scale(.88)}
+.uj-fx{position:fixed;z-index:96;pointer-events:none;left:0;top:0;will-change:transform,opacity;}
+@media (prefers-reduced-motion:reduce){.uj-cat,.uj-gelembung{display:none}}
 """
 
 
-def js(sapa: str = "", nama: str = "", kabar: str = "", sembunyi: bool = False, lengkap: bool = True) -> str:
-    """Skrip pemasang kucing (dijalankan di iframe kecil, memasang elemen ke halaman induk).
-    lengkap=False: kucing sudah terpasang di sesi ini, cukup kirim sapaan/kabar (hemat ~0,5 MB gambar)."""
-    if sembunyi:
-        return "<script>(function(P){if(P.__ujKucing)P.__ujKucing.hide();})(window.parent);</script>"
-    cfg = {"sapa": sapa, "nama": nama, "kabar": kabar}
+def _url(nama: str) -> str:
+    f = _STAT / nama
+    return f"/app/static/{nama}?v={int(f.stat().st_mtime) if f.exists() else 0}"
+
+
+def js(mode: str = "user", sapa: str = "", nama: str = "", kabar: str = "", lengkap: bool = True) -> str:
+    """Skrip pemasang kucing (iframe kecil yang memasang kode ke jendela induk).
+    lengkap=False: mesin sudah terpasang di sesi ini, cukup kirim mode/sapaan/kabar."""
+    cfg = {"mode": mode, "sapa": sapa, "nama": nama, "kabar": kabar}
     if not lengkap:
-        return ("<script>(function(P,C){var K=P.__ujKucing;if(!K)return;K.show();if(C.sapa)K.sambut(C);else if(C.kabar)K.kabarBaru(C.kabar);})(window.parent,"
+        return ("<script>(function(P,C){var K=P.__ujKucing;if(K&&K.mode)K.mode(C.mode,C);})(window.parent,"
                 + json.dumps(cfg, ensure_ascii=False) + ");</script>")
-    cfg.update({"css": css(), "spr": json.loads(_SPR.read_text())})
+    cfg.update({"css": css(), "meta": json.loads(_META.read_text()), "urls": {"pompom": _url("pompom.webp"), "oyen": _url("oyen.webp")}})
     # kode dijalankan di jendela induk (bukan di iframe) supaya animasi tetap hidup walau iframe diganti saat halaman dimuat ulang
     kode = "(function(P,CFG){" + _JS.read_text() + "})(window,%s);" % json.dumps(cfg, ensure_ascii=False)
     muat = json.dumps(kode, ensure_ascii=False).replace("</", "<\\/")
