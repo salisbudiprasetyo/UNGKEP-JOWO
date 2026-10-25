@@ -1,9 +1,17 @@
 // Pompom & Oyen: kucing gembul. Gambar karakter (atlas pose + frame perantara hasil interpolasi gerak) digerakkan mesin animasi 60 fps:
 // gerak berbasis fase langkah, fisika lompatan, pegas (squash & stretch), putaran 3D semu, bayangan, dan lintasan antar-pose.
-// Dijalankan di jendela induk. P = window, CFG = {mode, sapa, nama, kabar, css, meta, urls}.
+// Dijalankan di jendela induk. P = window, CFG = {mode, sapa, nama, kabar, css, meta, b64}.
 var D = P.document;
 if (P.__ujKucing) { P.__ujKucing.mode(CFG.mode, CFG); return; }
 
+function blobUrl(b64) {                       // gambar dikirim sebagai teks base64 lalu diubah jadi URL lokal (tidak bergantung pada berkas statis)
+  var bin = P.atob(b64), n = bin.length, u = new Uint8Array(n);
+  for (var i = 0; i < n; i++) u[i] = bin.charCodeAt(i);
+  return P.URL.createObjectURL(new P.Blob([u], { type: 'image/webp' }));
+}
+var URLS = {};
+if (CFG.b64 && CFG.b64.pompom) URLS.pompom = blobUrl(CFG.b64.pompom);
+if (CFG.b64 && CFG.b64.oyen) URLS.oyen = blobUrl(CFG.b64.oyen);
 var M = CFG.meta, SC = M.scale, BW = M.cw / SC, BH = M.ch / SC, COLS = M.cols;
 var st = D.createElement('style'); st.id = 'uj-kucing-css'; st.textContent = CFG.css; D.head.appendChild(st);
 
@@ -535,13 +543,15 @@ function muatAtlas(url) { return new Promise(function (res) { var im = new P.Ima
 K.mode = function (m, cfg) {
   cfg = cfg || {}; K.show();
   var admin = m === 'admin';
+  if (cfg.b64 && cfg.b64.oyen && !URLS.oyen) URLS.oyen = blobUrl(cfg.b64.oyen);
   if (admin) {
+    if (!URLS.oyen) return;
     if (!K.oy) {
-      K.oy = new Cat('oyen', CFG.urls.oyen, 'Oyen'); K.oy.slot = 1; K.oy.aktif = false; K.oy.el.style.display = 'none'; K.cats.push(K.oy); pasangKlik(K.oy);
+      K.oy = new Cat('oyen', URLS.oyen, 'Oyen'); K.oy.slot = 1; K.oy.aktif = false; K.oy.el.style.display = 'none'; K.cats.push(K.oy); pasangKlik(K.oy);
       K.oy.S.op = 1;
     }
     K.mod = 'admin'; aturKlik();
-    if (!K.oy.aktif && !K.masuk) { K.masuk = 1; muatAtlas(CFG.urls.oyen).then(function () { K.masuk = 0; if (K.mod === 'admin') K.masukOyen(); }); }
+    if (!K.oy.aktif && !K.masuk) { K.masuk = 1; muatAtlas(URLS.oyen).then(function () { K.masuk = 0; if (K.mod === 'admin') K.masukOyen(); }); }
   } else {
     var dariAdmin = K.mod === 'admin'; K.mod = 'user'; aturKlik();
     if (cfg.sapa) K.sambut(cfg);
@@ -549,11 +559,11 @@ K.mode = function (m, cfg) {
   }
 };
 P.__ujKucing = K;
-K.pom = new Cat('pompom', CFG.urls.pompom, 'Pompom'); K.pom.slot = 0; K.cats.push(K.pom); pasangKlik(K.pom);
+K.pom = new Cat('pompom', URLS.pompom, 'Pompom'); K.pom.slot = 0; K.cats.push(K.pom); pasangKlik(K.pom);
 (function () {
   var h = K.pom.home(); K.pom.S.x = h.x; K.pom.S.y = h.y; K.pom.lx = h.x; K.pom.ly = h.y; K.pom.aktif = true;
   P.requestAnimationFrame(frame);
-  muatAtlas(CFG.urls.pompom).then(function () {
+  muatAtlas(URLS.pompom).then(function () {
     K.pom.S.op = 1; K.siap = true;
     if (CFG.mode === 'admin') K.mode('admin', CFG);
     else if (CFG.sapa) { K.mod = 'user'; aturKlik(); K.sambut(CFG); }

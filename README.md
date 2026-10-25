@@ -75,7 +75,7 @@ Kucing animasi menyapa setelah masuk, berjalan/berlari/duduk/tidur/melompat di b
 
 ## Pompom & Oyen (kucing gembul)
 - **Pompom** (abu-abu) menemani pelanggan dan ikut pindah ke halaman admin; **Oyen** (oranye) hanya muncul di halaman admin dan pergi lagi saat admin kembali ke beranda.
-- Gambar karakter ada di `static/pompom.webp` dan `static/oyen.webp` (atlas pose + frame perantara hasil interpolasi gerak). Folder `static/` disajikan lewat `enableStaticServing = true` di `.streamlit/config.toml` — jangan dihapus.
+- Gambar karakter (atlas pose + frame perantara hasil interpolasi gerak) disimpan sebagai teks di `assets/pompom.b64` dan `assets/oyen.b64`, dikirim lewat halaman itu sendiri — tidak butuh berkas statis atau pengaturan server tambahan. Pastikan kedua berkas `.b64` ikut ter-upload ke GitHub.
 - Mesin animasi `assets/kucing.js` (60 fps): lintasan antar-pose lewat frame perantara, siklus jalan mengikuti jarak tempuh, fisika lompatan, pegas squash & stretch, balik badan lewat pose menghadap depan, perspektif 3D semu, dan bayangan.
 - Diam di kanan atas; tiap **5 detik** aktivitas acak: 26 aktivitas tunggal; di halaman admin ditambah 14 interaksi berdua (saling sapa, kejar-kejaran, tos lompat, berbagi makanan, saling merawat, menari bareng, tidur bareng, main bola, petak umpet, peluk sayang, ngobrol & tertawa, adu lari, lomba lompat, kaget bareng).
 - Setelah login: tersenyum, melompat dari kiri ke kanan, lalu melambai. **Memberi makan** lewat gelembung "Aku lapar".

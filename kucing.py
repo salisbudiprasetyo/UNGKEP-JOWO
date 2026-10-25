@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from functools import lru_cache
 from pathlib import Path
 
 import logic
@@ -11,7 +12,6 @@ import orders
 
 _JS = Path(__file__).parent / "assets" / "kucing.js"
 _META = Path(__file__).parent / "assets" / "pompom_meta.json"
-_STAT = Path(__file__).parent / "static"
 
 
 def css() -> str:
@@ -40,19 +40,23 @@ def css() -> str:
 """
 
 
-def _url(nama: str) -> str:
-    f = _STAT / nama
-    return f"/app/static/{nama}?v={int(f.stat().st_mtime) if f.exists() else 0}"
+@lru_cache(maxsize=4)
+def _b64(nama: str) -> str:
+    return (Path(__file__).parent / "assets" / f"{nama}.b64").read_text().strip()
 
 
-def js(mode: str = "user", sapa: str = "", nama: str = "", kabar: str = "", lengkap: bool = True) -> str:
+def js(mode: str = "user", sapa: str = "", nama: str = "", kabar: str = "", lengkap: bool = True, oyen: bool = False) -> str:
     """Skrip pemasang kucing (iframe kecil yang memasang kode ke jendela induk).
-    lengkap=False: mesin sudah terpasang di sesi ini, cukup kirim mode/sapaan/kabar."""
+    lengkap=False: mesin sudah terpasang di sesi ini, cukup kirim mode/sapaan/kabar.
+    oyen=True: sertakan gambar Oyen (hanya dikirim sekali, saat admin pertama kali membuka halaman admin)."""
     cfg = {"mode": mode, "sapa": sapa, "nama": nama, "kabar": kabar}
+    b64 = {"oyen": _b64("oyen")} if oyen else {}
     if not lengkap:
+        cfg["b64"] = b64
         return ("<script>(function(P,C){var K=P.__ujKucing;if(K&&K.mode)K.mode(C.mode,C);})(window.parent,"
                 + json.dumps(cfg, ensure_ascii=False) + ");</script>")
-    cfg.update({"css": css(), "meta": json.loads(_META.read_text()), "urls": {"pompom": _url("pompom.webp"), "oyen": _url("oyen.webp")}})
+    b64["pompom"] = _b64("pompom")
+    cfg.update({"css": css(), "meta": json.loads(_META.read_text()), "b64": b64})
     # kode dijalankan di jendela induk (bukan di iframe) supaya animasi tetap hidup walau iframe diganti saat halaman dimuat ulang
     kode = "(function(P,CFG){" + _JS.read_text() + "})(window,%s);" % json.dumps(cfg, ensure_ascii=False)
     muat = json.dumps(kode, ensure_ascii=False).replace("</", "<\\/")
