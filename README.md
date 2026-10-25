@@ -74,7 +74,7 @@ Kucing animasi menyapa setelah masuk, berjalan/berlari/duduk/tidur/melompat di b
 
 
 ## Meong v2 (kucing gembul) & Tanya admin
-- Kucing tabby gembul digambar sebagai SVG berlapis dan digerakkan mesin animasi 60 fps (`assets/kucing.js`): napas, ekor, kedip, langkah, efek 3D semu.
+- Karakter **Pompom** memakai pose dari ilustrasi karakter (`assets/pompom.json`), digerakkan mesin animasi 60 fps (`assets/kucing.js`) dengan efek 3D semu: perspektif, putar badan, miring, squash & stretch, bayangan, dan kedalaman.
 - Diam di **kanan atas**; tiap **5 detik** melakukan aktivitas acak (25 macam, durasi beragam). Setelah login: tersenyum, melompat dari kiri ke kanan, lalu melambai.
 - **Memberi makan**: saat Meong bilang "Aku lapar", pilih 🍗🍤🐟🥩🥛🍚 di gelembung.
 - **Tanya**: pertanyaan di luar kemampuan Meong disimpan di sheet `Tanya`, pelanggan diminta menunggu. Admin menjawab di tab **Tanya**; jawaban muncul di obrolan dan gelembung kucing (setelah halaman dimuat ulang).
