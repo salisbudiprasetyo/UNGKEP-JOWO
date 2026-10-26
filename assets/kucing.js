@@ -187,6 +187,8 @@ Cat.prototype.step = function (dt, now) {
   c.lx = S.x; c.ly = S.y;
   var spd = Math.sqrt(c.vx * c.vx + c.vy * c.vy);
   // --- pilih frame
+  if (!c.xf && c.L[1 - c.front].style.opacity !== '0') { c.L[1 - c.front].style.opacity = 0; }      // cegah dua lapis gambar tumpuk
+  if (!c.xf && c.L[c.front].style.opacity !== '1' && c.L[c.front].style.opacity !== '') c.L[c.front].style.opacity = 1;
   if (c.xf) {
     var p = Math.min(1, (now - c.xf.t0) / c.xf.ms), b = c.L[1 - c.front]; b.style.opacity = E.sine(p).toFixed(3);
     if (p >= 1) c.snapXf();
@@ -223,15 +225,23 @@ Cat.prototype.step = function (dt, now) {
   c.bay.style.opacity = (.9 - hh * .55).toFixed(3);
   if (c.gl.classList.contains('tampil')) c.posGl();
 };
+var lastDraw = 0;
 function frame(now) {
-  var dt = Math.min(.05, (now - (lastT || now)) / 1000); lastT = now; nowS = now / 1000;
-  for (var i = T.length - 1; i >= 0; i--) {
-    var tk = T[i], p = Math.min(1, (now - tk.t0) / tk.dur), e = tk.ease(p);
-    for (var k in tk.to) tk.o[k] = tk.from[k] + (tk.to[k] - tk.from[k]) * e;
-    if (p >= 1) { T.splice(i, 1); tk.res(); }
-  }
-  if (!K.sembunyi && !D.hidden) K.cats.forEach(function (c) { if (c.aktif) c.step(dt, now); });
-  P.requestAnimationFrame(frame);
+  P.requestAnimationFrame(frame);                  // jadwalkan dulu: galat sekali tidak boleh mematikan animasi selamanya
+  K.beat = Date.now();
+  try {
+    var dt = Math.min(.05, (now - (lastT || now)) / 1000); lastT = now; nowS = now / 1000;
+    for (var i = T.length - 1; i >= 0; i--) {
+      var tk = T[i], p = Math.min(1, (now - tk.t0) / tk.dur), e = tk.ease(p);
+      for (var k in tk.to) tk.o[k] = tk.from[k] + (tk.to[k] - tk.from[k]) * e;
+      if (p >= 1) { T.splice(i, 1); tk.res(); }
+    }
+    if (K.sembunyi || D.hidden) return;
+    var diam = !T.length && K.cats.every(function (c) { return !c.walkOn && !c.seq && !c.cyc && !c.xf && !c.fly; });
+    if (diam && now - lastDraw < 45) return;       // saat diam cukup ±22 fps (hemat baterai/CPU)
+    lastDraw = now;
+    K.cats.forEach(function (c) { if (c.aktif) { try { c.step(dt, now); } catch (er) { console.warn(er); } } });
+  } catch (er2) { console.warn(er2); }
 }
 
 // ------------------------------------------------------------------ gerak dasar: balik badan, jalan, lompat
@@ -443,11 +453,12 @@ function pilihAksi() {
 }
 function giliran(delay) {
   clearTimeout(K.timer);
+  K.tNext = Date.now() + (delay == null ? 5000 : delay);
   K.timer = setTimeout(function () { var a = pilihAksi(); K.jalankan(a.n, a.f); }, delay == null ? 5000 : delay);
 }
 K.jalankan = function (nama, fn) {
   if (K.sembunyi) { giliran(3000); return; }
-  stopAll(); var my = GT; aktifCats().forEach(function (c) { c.diam(); }); K.lastAct = nama; K.sibuk = nama;
+  stopAll(); K.mulai = Date.now(); var my = GT; aktifCats().forEach(function (c) { c.diam(); }); K.lastAct = nama; K.sibuk = nama;
   (async function () {
     try { await fn(my); chk(my); await Promise.all(aktifCats().map(function (c) { return pulang(c, my); })); }
     catch (e) { if (e !== 'batal') console.warn(e); }
@@ -535,7 +546,23 @@ D.addEventListener('pointerdown', function (e) {
   });
 }, true);
 P.addEventListener('resize', function () { if (!K.sibuk) K.cats.forEach(function (c) { if (c.aktif) { var h = c.home(); c.S.x = h.x; } }); });
-D.addEventListener('visibilitychange', function () { lastT = 0; });
+D.addEventListener('visibilitychange', function () {
+  lastT = 0;
+  if (D.hidden) { stopAll(); K.sibuk = ''; }                       // tab disembunyikan: hentikan, jangan menumpuk tugas
+  else if (!K.sembunyi && K.siap) { K.cats.forEach(function (c) { if (c.aktif) c.diam(); }); giliran(900); }
+});
+setInterval(function () {                                           // penjaga: bila animasi macet lama, mulai ulang
+  try {
+    if (D.hidden || K.sembunyi || !K.siap) return;
+    var n = Date.now();
+    if (K.sibuk && n - (K.mulai || n) > 90000) { stopAll(); K.sibuk = ''; giliran(300); }
+    else if (!K.sibuk && n - (K.tNext || n) > 15000) { giliran(300); }
+    if (K.beat && n - K.beat > 4000) P.requestAnimationFrame(frame);
+    var ada = D.querySelectorAll('.uj-cat'); if (ada.length > K.cats.length) [].forEach.call(ada, function (e) { if (!K.cats.some(function (c) { return c.el === e; })) e.remove(); });
+    [].forEach.call(D.querySelectorAll('.uj-fx'), function (e) { if (!e.__t) e.__t = n; else if (n - e.__t > 5000) e.remove(); });
+    K.cats.forEach(function (c) { if (c.aktif && !c.xf) { c.L[1 - c.front].style.opacity = 0; } });
+  } catch (er) { }
+}, 4000);
 
 // ------------------------------------------------------------------ mulai
 function aturKlik() { if (K.pom) K.pom.hit.setAttribute('data-c', K.mod === 'user' ? 'k|chat' : ''); if (K.pom && K.mod !== 'user') K.pom.hit.removeAttribute('data-c'); }

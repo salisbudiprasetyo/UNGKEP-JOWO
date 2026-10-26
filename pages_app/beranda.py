@@ -169,7 +169,7 @@ labels = [logic.label_periode(a, b) + (" (berjalan)" if i == 0 else "") for i, (
 pilih = st.selectbox("Periode", labels, index=0, label_visibility="collapsed")
 start, end = opsi[labels.index(pilih)]
 hari = logic.daftar_hari(start, end)
-JEDA = "2s" if admin else "8s"   # seberapa sering bagian "hidup" menyegarkan diri (membaca cache memori, bukan Google)
+JEDA = "5s" if admin else "12s"   # seberapa sering bagian "hidup" menyegarkan diri (membaca cache memori, bukan Google)
 kode = logic.kode_periode(start)
 
 

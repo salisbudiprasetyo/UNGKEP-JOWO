@@ -18,9 +18,8 @@ def css() -> str:
     return """
 .uj-cat{position:fixed;left:0;top:0;z-index:90;pointer-events:none;perspective:720px;will-change:transform,opacity;user-select:none;-webkit-user-select:none;}
 .uj-cat.sembunyi{display:none!important;}
-.uj-cat .tilt{position:absolute;inset:0;transform-origin:50% 96%;transform-style:preserve-3d;will-change:transform;
- filter:drop-shadow(0 3px 2px rgba(90,45,20,.25));}
-.uj-cat .spr{position:absolute;left:0;top:0;background-repeat:no-repeat;pointer-events:none;will-change:opacity;}
+.uj-cat .tilt{position:absolute;inset:0;transform-origin:50% 96%;transform-style:preserve-3d;will-change:transform;}
+.uj-cat .spr{position:absolute;left:0;top:0;background-repeat:no-repeat;pointer-events:none;}
 .uj-cat .bayang{position:absolute;left:50%;bottom:0;width:78px;height:12px;border-radius:50%;transform:translateX(-50%);
  background:radial-gradient(ellipse at center,rgba(90,45,20,.38),rgba(90,45,20,0) 70%);pointer-events:none;}
 .uj-cat .hit{position:absolute;left:50%;bottom:0;width:84px;height:92px;transform:translateX(-50%);pointer-events:auto;cursor:pointer;
