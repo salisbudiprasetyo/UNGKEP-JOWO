@@ -35,7 +35,12 @@ def css() -> str:
 .uj-gelembung .mkn button{font-size:1.25rem;line-height:1;border:2px solid #F0CC9C;background:#FFF1DB;border-radius:12px;padding:.25rem .4rem;cursor:pointer;transition:transform .12s}
 .uj-gelembung .mkn button:active{transform:scale(.88)}
 .uj-fx{position:fixed;z-index:96;pointer-events:none;left:0;top:0;will-change:transform,opacity;}
-@media (prefers-reduced-motion:reduce){.uj-cat,.uj-gelembung{display:none}}
+.uj-musim{position:fixed;left:0;top:0;right:0;bottom:0;pointer-events:none;z-index:80;overflow:hidden;}
+.uj-musim span{position:absolute;top:-30px;opacity:.85;will-change:transform;animation:uj-turun linear infinite;}
+.uj-musim.naik span{top:auto;bottom:-30px;animation-name:uj-naik;}
+@keyframes uj-turun{0%{transform:translate3d(0,0,0) rotate(0)}100%{transform:translate3d(var(--dx,0),110vh,0) rotate(200deg)}}
+@keyframes uj-naik{0%{transform:translate3d(0,0,0);opacity:0}15%{opacity:.85}100%{transform:translate3d(var(--dx,0),-110vh,0);opacity:0}}
+@media (prefers-reduced-motion:reduce){.uj-cat,.uj-gelembung,.uj-musim{display:none}}
 """
 
 
@@ -44,11 +49,52 @@ def _b64(nama: str) -> str:
     return (Path(__file__).parent / "assets" / f"{nama}.b64").read_text().strip()
 
 
+def url_statis() -> str:
+    """Alamat folder hosting statis kucing (mis. https://nama.github.io/ungkep-jowo/kucing/). Kosong = mode lama (kode dikirim lewat halaman)."""
+    import os
+    u = os.environ.get("KUCING_URL", "")
+    if not u:
+        try:
+            import streamlit as st
+            u = str(st.secrets.get("KUCING_URL", ""))
+        except Exception:
+            u = ""
+    return (u.rstrip("/") + "/") if u.strip() else ""
+
+
+def _musim() -> str:
+    import os
+    m = os.environ.get("KUCING_MUSIM", "")
+    if not m:
+        try:
+            import streamlit as st
+            m = str(st.secrets.get("KUCING_MUSIM", ""))
+        except Exception:
+            m = ""
+    return m.strip()
+
+
+def _js_statis(base: str, cfg: dict) -> str:
+    cfg = dict(cfg, base=base, url={"krish": base + "krish.webp", "oyen": base + "oyen.webp"}, tema=base + "tema.json", musim=_musim())
+    return ("<script>(function(P,C){var D=P.document;\n"
+            "if(P.__ujKucing){P.__ujKucing.mode(C.mode,C);return;}\n"
+            "if(P.__ujBoot){P.__ujBoot(P,C);return;}\n"
+            "if(P.__ujMuat){P.__ujMuat.push(C);return;}\n"
+            "P.__ujMuat=[C];var s=D.createElement('script');s.src=C.base+'kucing.js';\n"
+            "s.onload=function(){var q=P.__ujMuat||[];P.__ujMuat=null;if(!q.length||!P.__ujBoot)return;P.__ujBoot(P,q[0]);"
+            "for(var i=1;i<q.length;i++){if(P.__ujKucing)P.__ujKucing.mode(q[i].mode,q[i]);}};\n"
+            "s.onerror=function(){P.__ujMuat=null;};D.head.appendChild(s);})(window.parent,"
+            + json.dumps(cfg, ensure_ascii=False) + ");</script>")
+
+
 def js(mode: str = "user", sapa: str = "", nama: str = "", kabar: str = "", lengkap: bool = True, oyen: bool = False) -> str:
     """Skrip pemasang kucing (iframe kecil yang memasang kode ke jendela induk).
     lengkap=False: mesin sudah terpasang di sesi ini, cukup kirim mode/sapaan/kabar.
     oyen=True: sertakan gambar Oyen (hanya dikirim sekali, saat admin pertama kali membuka halaman admin)."""
     cfg = {"mode": mode, "sapa": sapa, "nama": nama, "kabar": kabar}
+    base = url_statis()
+    if base:
+        return _js_statis(base, cfg)
     b64 = {"oyen": _b64("oyen")} if oyen else {}
     if not lengkap:
         cfg["b64"] = b64

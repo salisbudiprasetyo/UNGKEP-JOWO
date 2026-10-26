@@ -10,6 +10,7 @@ function blobUrl(b64) {                       // gambar dikirim sebagai teks bas
   return P.URL.createObjectURL(new P.Blob([u], { type: 'image/webp' }));
 }
 var URLS = {};
+if (CFG.url) { URLS.krish = CFG.url.krish; URLS.oyen = CFG.url.oyen; }                      // mode hosting statis: gambar berupa berkas biasa (di-cache browser)
 if (CFG.b64 && CFG.b64.krish) URLS.krish = blobUrl(CFG.b64.krish);
 if (CFG.b64 && CFG.b64.oyen) URLS.oyen = blobUrl(CFG.b64.oyen);
 var M = CFG.meta, SC = M.scale, BW = M.cw / SC, BH = M.ch / SC, COLS = M.cols;
@@ -100,13 +101,11 @@ Cat.prototype.snapXf = function () {
   var c = this; if (!c.xf) return; var x = c.xf; c.xf = null;
   var back = c.L[1 - c.front]; c.front = 1 - c.front; back.style.opacity = 0; c.L[c.front].style.opacity = 1; c.cur = x.to; if (x.res) x.res();
 };
-Cat.prototype.cross = function (pose, ms) {      // lintas-pudar ke pose lain (dipakai bila tak ada jalur perantara)
+Cat.prototype.cross = function (pose, ms) {      // ganti pose langsung (tanpa lintas-pudar yang membuat gambar dobel), lalu tekan/pantul lewat pegas
   var c = this, i = typeof pose === 'number' ? pose : IDX[pose];
   return new Promise(function (res) {
-    c.snapXf(); c.seq = null;
-    var b = c.L[1 - c.front]; b.style.backgroundPosition = (-(i % COLS) * BW) + 'px ' + (-Math.floor(i / COLS) * BH) + 'px'; b.style.opacity = 0;
-    c.xf = { t0: P.performance.now(), ms: ms || 160, to: i, res: res };
-    if (typeof pose === 'string') c.pose = pose;
+    c.snapXf(); c.seq = null; c.show(i, true); if (typeof pose === 'string') c.pose = pose;
+    c.kick(5); setTimeout(res, Math.min(ms || 120, 150));
   });
 };
 Cat.prototype.go = function (target, fps) {      // putar frame perantara dari pose sekarang ke pose tujuan
@@ -571,6 +570,7 @@ K.mode = function (m, cfg) {
   cfg = cfg || {}; K.show();
   var admin = m === 'admin';
   if (cfg.b64 && cfg.b64.oyen && !URLS.oyen) URLS.oyen = blobUrl(cfg.b64.oyen);
+  if (cfg.tema && cfg.tema !== K.temaUrl) { K.temaUrl = cfg.tema; K.muatTema(cfg.tema, cfg.musim); }
   if (admin) {
     if (!URLS.oyen) return;
     if (!K.oy) {
@@ -585,11 +585,35 @@ K.mode = function (m, cfg) {
     else { if (dariAdmin) K.keluarOyen(); if (cfg.kabar) K.kabarBaru(cfg.kabar); }
   }
 };
+// ------------------------------------------------------------------ tema musim (diatur lewat tema.json di hosting statis, bisa diganti kapan saja)
+K.tema = function (t) {
+  var D2 = D, id = 'uj-tema-css', old = D2.getElementById(id); if (old) old.remove();
+  [].forEach.call(D2.querySelectorAll('.uj-musim'), function (e) { e.remove(); });
+  if (!t) return;
+  if (t.css) { var st2 = D2.createElement('style'); st2.id = id; st2.textContent = t.css; D2.head.appendChild(st2); }
+  var pt = t.partikel || {}; if (!t.tint && !(pt.emoji && pt.emoji.length)) return;
+  var wrap = D2.createElement('div'); wrap.className = 'uj-musim'; if (t.tint) wrap.style.background = t.tint; var n = (pt.emoji && pt.emoji.length) ? Math.min(16, pt.jumlah || 10) : 0;
+  for (var i = 0; i < n; i++) {
+    var e = D2.createElement('span'); e.textContent = pt.emoji[i % pt.emoji.length];
+    var dur = (pt.durasi || 12) * (.7 + Math.random() * .8);
+    e.style.cssText = 'left:' + (Math.random() * 100).toFixed(1) + '%;font-size:' + (10 + Math.random() * 12).toFixed(0) + 'px;animation-duration:' + dur.toFixed(1) + 's;animation-delay:-' + (Math.random() * dur).toFixed(1) + 's;--dx:' + ((Math.random() - .5) * 90).toFixed(0) + 'px;';
+    wrap.appendChild(e);
+  }
+  wrap.className += ' ' + (pt.arah === 'naik' ? 'naik' : 'turun'); D2.body.appendChild(wrap);
+};
+K.muatTema = function (url, paksa) {
+  if (!url || !P.fetch) return;
+  P.fetch(url + (url.indexOf('?') < 0 ? '?' : '&') + 't=' + Math.floor(Date.now() / 600000)).then(function (r) { return r.json(); }).then(function (j) {
+    var nm = paksa || j.aktif, t = j.tema && j.tema[nm]; K.musim = nm; K.tema(t);
+  }).catch(function () { });
+};
+D.addEventListener('visibilitychange', function () { [].forEach.call(D.querySelectorAll('.uj-musim'), function (e) { e.style.animationPlayState = D.hidden ? 'paused' : 'running'; }); });
 P.__ujKucing = K;
 K.pom = new Cat('krish', URLS.krish, 'Krish'); K.pom.slot = 0; K.cats.push(K.pom); pasangKlik(K.pom);
 (function () {
   var h = K.pom.home(); K.pom.S.x = h.x; K.pom.S.y = h.y; K.pom.lx = h.x; K.pom.ly = h.y; K.pom.aktif = true;
   P.requestAnimationFrame(frame);
+  if (CFG.tema) { K.temaUrl = CFG.tema; K.muatTema(CFG.tema, CFG.musim); }
   muatAtlas(URLS.krish).then(function () {
     K.pom.S.op = 1; K.siap = true;
     if (CFG.mode === 'admin') K.mode('admin', CFG);

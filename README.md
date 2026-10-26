@@ -80,3 +80,11 @@ Kucing animasi menyapa setelah masuk, berjalan/berlari/duduk/tidur/melompat di b
 - Diam di kanan atas; tiap **5 detik** aktivitas acak: 26 aktivitas tunggal; di halaman admin ditambah 14 interaksi berdua (saling sapa, kejar-kejaran, tos lompat, berbagi makanan, saling merawat, menari bareng, tidur bareng, main bola, petak umpet, peluk sayang, ngobrol & tertawa, adu lari, lomba lompat, kaget bareng).
 - Setelah login: tersenyum, melompat dari kiri ke kanan, lalu melambai. **Memberi makan** lewat gelembung "Aku lapar".
 - **Tanya**: pertanyaan di luar kemampuan Krish disimpan di sheet `Tanya`; admin menjawab di tab **Tanya**. Admin tidak bisa mengubah/membatalkan pesanan tanggal yang sudah lewat.
+
+
+## Hosting statis kucing + tema musim (anti macet)
+Kucing bisa dimuat dari berkas statis (GitHub Pages) sehingga server Streamlit tidak lagi mengirim ±3 MB tiap halaman dimuat, gambar di-cache browser, dan kucing/tema bisa diubah tanpa menyentuh aplikasi.
+1. Folder `docs/kucing/` sudah berisi semuanya (dibuat oleh `python bangun_statis.py`; jalankan ulang setelah mengubah `assets/kucing.js` atau gambar). Commit & push ke GitHub.
+2. GitHub → repo → **Settings → Pages** → Source: *Deploy from a branch* → Branch `main`, folder `/docs` → Save. Tunggu ±1 menit; uji `https://NAMA.github.io/ungkep-jowo/kucing/index.html` (tambah `?musim=dingin`, `&admin=1`).
+3. Streamlit Cloud → app → **Settings → Secrets**, tambahkan: `KUCING_URL = "https://NAMA.github.io/ungkep-jowo/kucing/"` lalu simpan. Hapus baris itu untuk kembali ke mode lama (kode dikirim lewat halaman).
+4. **Ganti musim**: edit `docs/kucing/tema.json`, ubah `"aktif"` (`normal`, `dingin`, `panas`, `hujan`, atau buat tema baru: `tint` warna lapisan, `css` penimpa warna, `partikel` emoji jatuh/naik) lalu commit. Pelanggan melihatnya ≤10 menit kemudian. Untuk memaksa lewat Streamlit: secret `KUCING_MUSIM = "dingin"`.
