@@ -11,6 +11,7 @@ import streamlit.components.v1 as components
 
 import logic
 import orders
+import payments
 import services
 import ui_pesanan as ui
 
@@ -78,7 +79,8 @@ def data_periode(start: date, end: date) -> pd.DataFrame:
 
 def tabel_html(df: pd.DataFrame, nama_semua: list[str], hari: list[date], me: str | None, admin: bool,
                bisa_pesan: set[date], libur: dict[date, str], rev: set[tuple[str, date]], kode: str,
-               punyaku: set[tuple[str, date]] = frozenset()) -> str:
+               punyaku: set[tuple[str, date]] = frozenset(),
+               bel_h: set = frozenset(), bel_t: set = frozenset()) -> str:
     """Tabel kasbon. Sel yang boleh diklik diberi data-c (dibaca skrip kecil di bawah)."""
     hari_ini = logic.today_wib()
     pivot = df.groupby(["pelanggan", "tgl"])["subtotal"].sum().to_dict() if not df.empty else {}
@@ -138,6 +140,8 @@ def tabel_html(df: pd.DataFrame, nama_semua: list[str], hari: list[date], me: st
                 isi = "libur"
             else:
                 isi = "·"
+            if admin and (n, d.isoformat()) in bel_h:      # bukti bayar menunggu diperiksa
+                isi = '<span class="bel">🔔</span>' + isi
             attr = f' data-c="d|{d.isoformat()}|{html.escape(n, quote=True)}"' if klik else ""
             h.append(f'<td class="{cls}"{attr}>{isi}</td>')
         semua_lunas = bool(total and lunas.get(n))
@@ -150,6 +154,8 @@ def tabel_html(df: pd.DataFrame, nama_semua: list[str], hari: list[date], me: st
             isi_tot = logic.rupiah(sisa_n)
         else:
             isi_tot = logic.rupiah(total) if total else "-"
+        if admin and n in bel_t:
+            isi_tot = '<span class="bel">🔔</span>' + isi_tot
         h.append(f'<td class="tot{" klik" if tklik else ""}{" lunas-tot" if semua_lunas else ""}"{attr}>{isi_tot}</td></tr>')
     h.append("</tbody></table></div>")
     return "".join(h)
@@ -188,7 +194,8 @@ def turunan(cari_: str = "") -> SimpleNamespace:
     semua = list(nama)
     if cari_:
         nama = [n for n in nama if cari_.lower() in n.lower() or n == me]
-    return SimpleNamespace(df=df_, libur=orders.libur_map(store), buka=buka, buka_admin=buka_admin, punyaku=punya, rev=rev_,
+    bel_h, bel_t = (payments.lonceng(store, kode) if admin else (set(), set()))
+    return SimpleNamespace(bel_h=bel_h, bel_t=bel_t, df=df_, libur=orders.libur_map(store), buka=buka, buka_admin=buka_admin, punyaku=punya, rev=rev_,
                            nama=nama, semua=semua, sel_kosong=(({buka_admin} if buka_admin else set()) if admin else ({buka} if buka else set())))
 
 
@@ -251,13 +258,13 @@ _MEMO_TBL: dict = {}
 @st.fragment(run_every=JEDA)
 def tabel_live():
     menit = logic.now_wib().strftime("%Y-%m-%d %H:%M")   # batas jam pesan ikut mempengaruhi tampilan
-    kunci = (id(store), store.stamp("Kasbon", "Revisi", "Libur", "MenuHarian", "Pelanggan", "Tutup"), me, admin, start, cari, menit)
+    kunci = (id(store), store.stamp("Kasbon", "Revisi", "Libur", "MenuHarian", "Pelanggan", "Tutup", "Pembayaran"), me, admin, start, cari, menit)
     isi = _MEMO_TBL.get(kunci)
     if isi is None:
         d = turunan(cari)
-        isi = tabel_html(d.df, d.nama, hari, me, admin, d.sel_kosong, d.libur, d.rev, kode, d.punyaku)
+        isi = tabel_html(d.df, d.nama, hari, me, admin, d.sel_kosong, d.libur, d.rev, kode, d.punyaku, d.bel_h, d.bel_t)
         isi += ('<div class="cap">Ketuk <b>PESAN</b> untuk memesan · ketuk angka untuk rincian dan pembayaran hari itu · '
-                'ketuk TOTAL untuk tagihan satu periode · ⏳ menunggu admin · hijau = lunas</div>')
+                'ketuk TOTAL untuk tagihan satu periode · ⏳ menunggu admin · hijau = lunas' + (' · 🔔 bukti bayar menunggu diperiksa' if admin else '') + '</div>')
         lib = {t: k for t, k in d.libur.items() if t >= hari_ini}
         if lib:
             isi += '<div class="kartu libur-info"><b>Libur pemesanan:</b> ' + ", ".join(
@@ -301,7 +308,12 @@ else:
     components.html(_kjs, height=0)
 
 # buka jendela yang diminta (dari ketukan sel atau dari tombol di dalam jendela lain)
-if (spec := st.session_state.pop("_open", None)) and spec[0] == "siapa":
+_toast = st.session_state.pop("_toast", None)
+if _toast:
+    st.toast(_toast)
+if (spec := st.session_state.pop("_open", None)):
+    st.session_state.pop("_lihat_bukti", None)          # jendela baru selalu mulai dari rincian, bukan dari gambar bukti
+if spec and spec[0] == "siapa":
     ui.dialog_siapa(spec[1], spec[2], admin=admin)
 elif spec and spec[0] == "kucing":
     ui.dialog_kucing(me)

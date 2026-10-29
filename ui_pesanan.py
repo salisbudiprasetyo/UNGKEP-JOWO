@@ -162,8 +162,7 @@ def _rincian_tabel(items: list[dict]) -> str:
 
 
 def _muat_ulang(iso: str, nama: str) -> None:
-    """Segarkan seluruh halaman (tabel ikut berubah) lalu buka lagi rincian yang sama."""
-    st.session_state["_open"] = ("rincian", iso, nama)
+    """Segarkan seluruh halaman (tabel ikut berubah); jendela tertutup dan kabar singkat muncul sebagai toast."""
     st.rerun()
 
 
@@ -172,6 +171,10 @@ def _blok_bayar(store, tgl: date, nama: str, admin: bool) -> None:
     import payments
     kode = logic.kode_periode(logic.periode_untuk(tgl)[0])
     iso = tgl.isoformat()
+    if admin:    # admin: lihat bukti, centang item yang lunas, simpan / batalkan (tanpa muat ulang halaman sampai disimpan)
+        import ui_bayar
+        ui_bayar.blok_harian(store, tgl, nama, lambda: _muat_ulang(iso, nama))
+        return
     t = payments.tagihan(store, nama, kode, iso)
     cek = payments.menunggu_cek(store, nama, kode, iso)
     its = payments.item_belum_lunas(store, nama, kode, iso)
@@ -215,6 +218,10 @@ def _blok_bayar(store, tgl: date, nama: str, admin: bool) -> None:
             if c[1].button("Bayar sekarang", key=f"by_{iso}_{nama}", type="primary", width="stretch", disabled=kosong):
                 st.session_state["_open"] = ("bayar", kode, nama, iso, pilih)
                 st.rerun()
+        elif not t["lunas"] and pemilik:       # sudah ada bukti menunggu cek: boleh kirim bukti tambahan
+            if c[1].button("Kirim bukti lagi", key=f"by2_{iso}_{nama}", width="stretch"):
+                st.session_state["_open"] = ("bayar", kode, nama, iso, None)
+                st.rerun()
     if admin:
         for p in cek.itertuples():
             st.warning(f"Bukti transfer {logic.rupiah(float(p.jumlah))} dari pelanggan, tagihan {logic.rupiah(float(p.tagihan))}.")
@@ -227,6 +234,10 @@ def _blok_bayar(store, tgl: date, nama: str, admin: bool) -> None:
 @st.dialog("Rincian pesanan")
 def dialog_rincian(tgl_iso: str, nama: str, admin: bool = False):
     store = services.get_store()
+    if admin and st.session_state.get("_lihat_bukti"):
+        import ui_bayar
+        ui_bayar.halaman_bukti(store, st.session_state["_lihat_bukti"])
+        return
     tgl = date.fromisoformat(tgl_iso)
     items = orders.items_pesanan(store, tgl, nama)
     rev = orders.revisi_menunggu(store, tgl, nama)
@@ -278,7 +289,7 @@ def rekening() -> dict:
 
 def _bukti_img(b64: str) -> None:
     import base64
-    if b64:
+    if b64 and len(b64) > 20:
         st.image(base64.b64decode(b64), width=220)
 
 
@@ -286,6 +297,10 @@ def _bukti_img(b64: str) -> None:
 def dialog_tagihan(kode: str, nama: str, admin: bool = False):
     import payments
     store = services.get_store()
+    if admin and st.session_state.get("_lihat_bukti"):
+        import ui_bayar
+        ui_bayar.halaman_bukti(store, st.session_state["_lihat_bukti"])
+        return
     th, bl = (int(x) for x in kode.split("-"))
     start = date(th, bl, logic.CUTOFF_HARI + 1)
     a, b = logic.periode_untuk(start)
@@ -306,23 +321,16 @@ def dialog_tagihan(kode: str, nama: str, admin: bool = False):
         st.markdown(f'<div class="kartu"><small>Belum dibayar</small><div class="besar">{logic.rupiah(t["sisa"])}</div>'
                     f'<small>Jatuh tempo {logic.CUTOFF_HARI} {logic.BULAN[b.month]} {b.year} · status: {stat}</small></div>', unsafe_allow_html=True)
     cek = payments.menunggu_cek(store, nama, kode)
-    for p in cek.itertuples():
-        st.warning(f"Bukti transfer {logic.rupiah(float(p.jumlah))} menunggu dicek admin.")
-        if admin:
-            _bukti_img(p.bukti)
     if admin:
-        if not t["lunas"]:
-            if st.button("Konfirmasi lunas", type="primary", width="stretch"):
-                payments.konfirmasi_lunas(store, nama, kode)
-                st.rerun()
-            if not cek.empty and st.button("Tolak bukti transfer", width="stretch"):
-                payments.tolak_pembayaran(store, nama, kode)
-                st.rerun()
-        elif st.button("Batalkan status lunas", width="stretch"):
-            payments.batalkan_lunas(store, nama, kode)
+        import ui_bayar
+
+        def _buka_lagi():
             st.rerun()
-    elif not t["lunas"]:
-        if st.button("Bayar sekarang", type="primary", width="stretch"):
+        ui_bayar.blok_total(store, kode, nama, _buka_lagi)
+    else:
+        for p in cek.itertuples():
+            st.warning(f"Bukti transfer {logic.rupiah(float(p.jumlah))} menunggu dicek admin.")
+        if not t["lunas"] and st.button("Bayar sekarang", type="primary", width="stretch"):
             st.session_state["_open"] = ("bayar", kode, nama)
             st.rerun()
 
@@ -355,13 +363,13 @@ def dialog_bayar(kode: str, nama: str, tgl_iso: str | None = None, pilih: list[s
     foto = st.file_uploader("Unggah foto bukti pembayaran", type=["jpg", "jpeg", "png", "webp"], key=f"bayar_foto_{kode}_{tgl_iso}")
     if foto:
         st.image(foto, width=200)
-    st.caption("Jika jumlahnya sama dengan tagihan, kasbon langsung berstatus lunas. Jika berbeda, bukti tetap tersimpan dan dicek admin.")
+    st.caption("Bukti dikirim ke admin. Status lunas berubah setelah admin mengecek bukti pembayaranmu.")
     if st.button("Kirim bukti pembayaran", type="primary", width="stretch"):
         err, status = payments.kirim_pembayaran(store, nama, kode, float(jumlah), foto.getvalue() if foto else None, tgl_iso, pilih)
         if err:
             st.error(err)
         else:
-            st.session_state["_sukses"] = {"kind": "bayar-oto" if status == payments.LUNAS_OTO else "bayar-cek",
+            st.session_state["_sukses"] = {"kind": "bayar-cek",
                                            "tgl": logic.today_wib().isoformat(), "total": float(jumlah)}
             st.rerun()
 
@@ -380,12 +388,9 @@ def dialog_sukses(info: dict):
     elif kind == "batal":
         st.markdown("### Permintaan batal terkirim")
         st.markdown("Pesanan baru benar-benar batal setelah admin mengonfirmasi.")
-    elif kind == "bayar-oto":
-        st.markdown("### Pembayaran diterima ✓")
-        st.markdown(f"Nominal **{logic.rupiah(info['total'])}** sesuai tagihan. Kasbon periode ini berstatus **LUNAS**.")
     elif kind == "bayar-cek":
         st.markdown("### Bukti pembayaran tersimpan")
-        st.markdown(f"Nominal **{logic.rupiah(info['total'])}** belum sama dengan tagihan, jadi admin akan mengeceknya dulu.")
+        st.markdown(f"Nominal **{logic.rupiah(info['total'])}**. Admin akan mengecek bukti ini lalu menandai pembelian yang lunas.")
     elif kind == "batal-langsung":
         st.markdown("### Pesanan dibatalkan")
     else:

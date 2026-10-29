@@ -36,6 +36,12 @@ KAT_MAKANAN = ["Nasi", "Ayam Sayur", "Lauk", "Lain-lain"]  # urutan tampil (Ayam
 
 import tanya as _tanya
 _n_tanya = len(_tanya.menunggu(services.get_store()))
+_n_bayar = len(payments.menunggu_semua(store))
+_t = st.session_state.pop("_toast", None)
+if _t:
+    st.toast(_t)
+if _n_bayar:
+    st.warning(f"🔔 {_n_bayar} bukti bayar menunggu dicek — buka tab **Pembayaran**.")
 tab_harian, tab_libur, tab_bayar, tab_master, tab_minuman, tab_sandi, tab_pelanggan, tab_awal, tab_tanya = st.tabs(
     ["Menu harian", "Libur", "Pembayaran", "Menu master", "Minuman", "Sandi", "Pelanggan", "Impor Excel",
      f"Tanya 🐱{' (' + str(_n_tanya) + ')' if _n_tanya else ''}"])
@@ -352,25 +358,28 @@ with tab_bayar:
     c1.metric("Total kasbon", logic.rupiah(total_semua))
     c2.metric("Sudah lunas", logic.rupiah(total_semua - total_sisa))
     c3.metric("Belum lunas", logic.rupiah(total_sisa))
-    st.caption(f"Jatuh tempo {logic.CUTOFF_HARI} {logic.BULAN[akhir.month]} {akhir.year}. Pelanggan membayar lewat tombol “Bayar sekarang”; "
-               "bila nominal sama dengan tagihan, otomatis lunas.")
+    st.caption(f"Jatuh tempo {logic.CUTOFF_HARI} {logic.BULAN[akhir.month]} {akhir.year}. Pelanggan membayar lewat tombol “Bayar sekarang” dan mengirim bukti; "
+               "lunas baru berlaku setelah kamu mengonfirmasi.")
 
-    cek = payments.daftar(store, kode=kode)
-    cek = cek[cek["status"] == payments.CEK]
-    if not cek.empty:
-        st.markdown("#### Perlu dicek")
-        for p in cek.itertuples():
-            with st.container(border=True):
-                st.markdown((f"Pesanan {p.tanggal} · " if p.tanggal else "") + f"**{p.pelanggan}** transfer **{logic.rupiah(float(p.jumlah))}** · tagihan {logic.rupiah(float(p.tagihan))}")
-                if p.bukti:
-                    st.image(base64.b64decode(p.bukti), width=220)
-                a, b = st.columns(2)
-                if a.button("Konfirmasi lunas", key=f"kl_{p.id}", type="primary", width="stretch"):
-                    payments.konfirmasi_lunas(store, p.pelanggan, kode, tgl=p.tanggal or None)
-                    st.rerun()
-                if b.button("Tolak", key=f"tl_{p.id}", width="stretch"):
-                    payments.tolak_pembayaran(store, p.pelanggan, kode, tgl=p.tanggal or None)
-                    st.rerun()
+    import ui_bayar
+    cek = payments.menunggu_semua(store)
+    st.markdown(f"#### Menunggu konfirmasi bayar{' (' + str(len(cek)) + ')' if len(cek) else ''}")
+    if cek.empty:
+        st.caption("Belum ada bukti bayar yang perlu dicek.")
+    for p in cek.itertuples():
+        with st.container(border=True):
+            st.markdown(f"**{p.pelanggan}** mengirim bukti bayar")
+            st.caption(f"{ui_bayar.waktu_teks(p.waktu)} · Rp {int(float(p.jumlah or 0)):,}".replace(",", ".")
+                       + f" · periode {ui_bayar._label_periode(p.periode)}"
+                       + (f" · pesanan {ui_bayar._tgl(p.tanggal)}" if p.tanggal else ""))
+            a1, a2, a3 = st.columns(3)
+            if a1.button("Bukti bayar", key=f"bb_{p.id}", width="stretch"):
+                ui_bayar.dialog_bukti(p.id)
+            if a2.button("Konfirmasi pelunasan", key=f"kp_{p.id}", type="primary", width="stretch"):
+                ui_bayar.dialog_konfirmasi(p.id)
+            if a3.button("Tolak", key=f"tl_{p.id}", width="stretch"):
+                payments.tolak_bukti(store, p.id)
+                st.rerun()
 
     st.markdown("#### Rekap per pelanggan")
     if baris:

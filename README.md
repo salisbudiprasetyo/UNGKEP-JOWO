@@ -88,3 +88,10 @@ Kucing bisa dimuat dari berkas statis (GitHub Pages) sehingga server Streamlit t
 2. GitHub → repo → **Settings → Pages** → Source: *Deploy from a branch* → Branch `main`, folder `/docs` → Save. Tunggu ±1 menit; uji `https://NAMA.github.io/ungkep-jowo/kucing/index.html` (tambah `?musim=dingin`, `&admin=1`).
 3. Streamlit Cloud → app → **Settings → Secrets**, tambahkan: `KUCING_URL = "https://NAMA.github.io/ungkep-jowo/kucing/"` lalu simpan. Hapus baris itu untuk kembali ke mode lama (kode dikirim lewat halaman).
 4. **Ganti musim**: edit `docs/kucing/tema.json`, ubah `"aktif"` (`normal`, `dingin`, `panas`, `hujan`, atau buat tema baru: `tint` warna lapisan, `css` penimpa warna, `partikel` emoji jatuh/naik) lalu commit. Pelanggan melihatnya ≤10 menit kemudian. Untuk memaksa lewat Streamlit: secret `KUCING_MUSIM = "dingin"`.
+
+
+## Bukti bayar & konfirmasi (admin)
+- Pelanggan hanya **mengirim bukti** (foto apa pun diterima, tetapi **tidak pernah otomatis lunas**). Boleh mengirim lebih dari satu bukti dalam satu periode ("Kirim bukti lagi").
+- Admin melihat 🔔 di sel tanggal (bukti khusus tanggal itu) dan di kolom TOTAL (semua bukti pelanggan itu). Ketuk sel tanggal → rincian pesanan + tombol **Lihat bukti bayar** (jendela gambar + **Tutup** kembali ke rincian) → centang item yang lunas (boleh sebagian) → **Simpan**. Hilangkan centang + Simpan = batalkan pelunasan.
+- Ketuk TOTAL → semua pesanan periode bisa dicentang satu per satu; tombol bukti sebanyak foto yang diunggah. Setelah TOTAL disimpan, semua 🔔 pelanggan itu hilang.
+- Penyimpanan ringan: foto bukti disimpan di sheet `BuktiFoto`; sheet `Pembayaran` hanya berisi penanda ("ada"), sehingga tabel utama tetap cepat.

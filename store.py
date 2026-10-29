@@ -35,6 +35,8 @@ SCHEMA: dict[str, list[str]] = {
     "Revisi": ["tanggal", "pelanggan", "jenis", "items", "catatan", "waktu", "status"],
     # pembayaran kasbon: bukti transfer disimpan sebagai foto kecil (base64) di kolom bukti
     "Pembayaran": ["id", "waktu", "pelanggan", "periode", "jumlah", "tagihan", "metode", "status", "bukti", "catatan", "tanggal"],
+    # foto bukti bayar ukuran penuh dipecah per potongan (satu sel Google Sheets maks 50.000 karakter)
+    "BuktiFoto": ["id", "urut", "data"],
     # tanggal libur pemesanan (diatur admin)
     "Libur": ["tanggal", "keterangan", "dibuat"],
     "Tutup": ["tanggal", "waktu"],
@@ -90,6 +92,22 @@ class LocalStore:
     @_locked
     def replace_all(self, sheet: str, rows: list[dict]) -> None:
         self._save(sheet, pd.DataFrame(rows, columns=SCHEMA[sheet]).astype(str))
+
+    @_locked
+    def update_banyak(self, sheet: str, daftar: list[dict], updates: dict) -> int:
+        """Ubah banyak baris sekaligus (satu penyimpanan): setiap elemen `daftar` = syarat satu baris."""
+        df = self.all(sheet)
+        mask = pd.Series(False, index=df.index)
+        for match in daftar:
+            m = pd.Series(True, index=df.index)
+            for k, v in match.items():
+                m &= df[k] == str(v)
+            mask |= m
+        for k, v in updates.items():
+            df.loc[mask, k] = str(v)
+        if mask.any():
+            self._save(sheet, df)
+        return int(mask.sum())
 
     @_locked
     def update_where(self, sheet: str, match: dict, updates: dict) -> int:
@@ -270,6 +288,33 @@ class SheetsStore:
                     sel.append({"range": _a1(rn[pos], cols.index(k) + 1), "values": [[str(v)]]})
                     df.iat[pos, cols.index(k)] = str(v)
         if sel:   # hanya sel yang berubah, dalam satu panggilan
+            ws = self._worksheet(sheet)
+            try:
+                ws.batch_update(sel, value_input_option="RAW")
+            except TypeError:
+                ws.batch_update(sel)
+            self._ver[sheet] = self._ver.get(sheet, 0) + 1
+            self._taruh(sheet, df.reset_index(drop=True), rn)
+        return int(mask.sum())
+
+    @_locked
+    def update_banyak(self, sheet: str, daftar: list[dict], updates: dict) -> int:
+        """Ubah banyak baris sekaligus dalam SATU panggilan ke Google."""
+        df, rn = self._dasar(sheet)
+        mask = pd.Series(False, index=df.index)
+        for match in daftar:
+            m = pd.Series(True, index=df.index)
+            for k, v in match.items():
+                m &= df[k] == str(v)
+            mask |= m
+        cols = SCHEMA[sheet]
+        sel = []
+        for pos in [i for i, x in enumerate(mask.tolist()) if x]:
+            for k, v in updates.items():
+                if str(df.iat[pos, cols.index(k)]) != str(v):
+                    sel.append({"range": _a1(rn[pos], cols.index(k) + 1), "values": [[str(v)]]})
+                    df.iat[pos, cols.index(k)] = str(v)
+        if sel:
             ws = self._worksheet(sheet)
             try:
                 ws.batch_update(sel, value_input_option="RAW")
